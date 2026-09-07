@@ -51,6 +51,15 @@ Before writing, read `<repository>/protocol/README.md` and follow its schema and
 
 After a successful write, state the recorded conclusion in one sentence. Respect the repository's configured synchronization mechanism; do not invent another one.
 
+## Optional synchronization
+
+If the repository contains `scripts/setup-autosync.sh`, treat synchronization as an optional repository capability, not part of ordinary decision capture.
+
+- Enable it only when the user explicitly asks.
+- Before enabling it, verify the repository is Git-backed, has an accessible remote branch, and is intended to hold the user's private context.
+- Never create a public context repository or change remote visibility without explicit authorization.
+- On sync failure or conflict, preserve local commits and report the log location; do not discard or overwrite either side.
+
 ## Learn from correction
 
 When the user says an item was not a decision, was assigned to the wrong project, was inaccurate, or incorrectly superseded an older decision:

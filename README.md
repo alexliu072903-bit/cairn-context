@@ -1,5 +1,7 @@
 # Cairn Context
 
+[简体中文](README.zh-CN.md)
+
 A small Codex Skill for keeping durable project decisions in a repository that you own and control.
 
 The public repository contains only the reusable mechanism. Your identity, project context, decisions, corrections, and history live in a separate local or private repository.

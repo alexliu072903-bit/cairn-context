@@ -45,4 +45,9 @@ Never overwrite history. Mark an old decision `superseded` or `revoked`, create 
 
 ## Correction
 
-Correct repository facts first. Do not change this protocol from a single correction. Add a feedback or benchmark system only when the team explicitly decides it needs one.
+When the user says an item was not a decision, was assigned to the wrong project, was inaccurate, or incorrectly superseded an older decision:
+
+1. correct the repository fact first;
+2. append the original context, Agent action, user correction, and correct behavior to `protocol/benchmark/feedback.md`;
+3. do not change this protocol from one correction;
+4. promote repeated or generalizable failures to `protocol/benchmark/cases.yaml` only when they justify a stable test.

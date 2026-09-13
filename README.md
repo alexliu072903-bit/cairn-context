@@ -6,6 +6,8 @@ A small Codex Skill for keeping durable project decisions in a repository that y
 
 The public repository contains only the reusable mechanism. Your identity, project context, decisions, corrections, and history live in a separate local or private repository.
 
+Every installation uses the same decision-memory kernel: relevant recall, decision-signal classification, explicit confirmation when ambiguous, preserved decision history, and correction feedback. Personalization comes from the generated private repository—not from maintaining a weaker or different Skill fork.
+
 ## Install
 
 Clone this repository, then run:

@@ -1,0 +1,2 @@
+# Add a case only when repeated or generalizable feedback justifies a stable test.
+cases: []

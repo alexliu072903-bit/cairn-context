@@ -6,7 +6,15 @@ A small Codex Skill for keeping durable project decisions in a repository that y
 
 The public repository contains only the reusable mechanism. Your identity, project context, decisions, corrections, and history live in a separate local or private repository.
 
-Every installation uses the same decision-memory kernel: relevant recall, decision-signal classification, explicit confirmation when ambiguous, preserved decision history, and correction feedback. Personalization comes from the generated private repository—not from maintaining a weaker or different Skill fork.
+Every installation uses the same decision-memory mechanism:
+
+- retrieve only context relevant to the current task;
+- distinguish confirmed decisions from inclinations, questions, and temporary experiments;
+- ask for confirmation once when the signal is genuinely ambiguous;
+- preserve revisions, revocations, and decision history;
+- learn from user corrections through Feedback and, when justified, Benchmark Cases.
+
+Personalization comes from the generated private repository, not from a different Skill. Everyone uses the same judgment mechanism while developing their own projects, decisions, and context over time.
 
 ## Install
 
@@ -54,7 +62,11 @@ Autosync is never enabled by the Skill installer. When GitHub CLI is available, 
 ```text
 ~/cairn/
 ├── AGENTS.md
-├── protocol/README.md
+├── protocol/
+│   ├── README.md
+│   └── benchmark/
+│       ├── feedback.md
+│       └── cases.yaml
 ├── scripts/
 │   ├── setup-autosync.sh
 │   └── sync.sh

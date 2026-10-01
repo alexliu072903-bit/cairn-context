@@ -72,10 +72,16 @@ It reads only the standard library, so there is nothing to install. It reports a
 - a required field is missing (`project`, `decision`, `status`, `decided_by`, `decided_at`), or `status` is not `valid`, `superseded`, or `revoked`;
 - `decided_at` is not a real date in `YYYY-MM-DD` form;
 - `project` or `decision` does not match where the file lives;
-- `supersedes` points to a decision that does not exist, to itself, or in a loop;
-- the decision it replaces is still marked `valid`, or more than one decision replaces the same one.
+- `supersedes` (one id, or a list when a decision replaces several) points to a decision that does not exist, to itself, or in a loop;
+- `superseded_by`, if you use it, points to a decision that does not exist;
+- the decision it replaces is still marked `valid`.
 
-It reports a warning, not an error, for a missing section, an unknown field, an unusual id, or a `superseded` decision that nothing replaces.
+It reports a warning, not an error, for:
+
+- a missing section. English headings (`Decision`, `Rationale`, `Scope`, `Explicitly excluded`, `Overturn signal`) and Chinese headings (`结论`, `为什么`, `适用范围`, `明确不做`, `推翻条件`) are both recognized, and a file is checked against the set it uses;
+- an unknown field, or an unusual id;
+- a `superseded` decision that nothing replaces;
+- one decision replaced by several (a split), or a `superseded_by` whose target does not list it in `supersedes`.
 
 Options: `--json` for machine-readable output, `--strict` to fail on warnings. The exit code is 0 when there are no errors, 1 when there are, and 2 when the repository cannot be read. The Skill runs it after recording a decision if the script is present.
 

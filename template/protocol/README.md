@@ -51,7 +51,7 @@ After writing or changing decisions, run:
 python3 scripts/validate.py
 ```
 
-It checks that each decision has the required fields and a valid status, that its `project` and `decision` match where the file is, that `supersedes` points to an existing decision in the same project, that history is a single chain with no cycle, and that a decision replaced by another is no longer `valid`. Errors must be fixed. Warnings (missing sections, unknown fields) are advice.
+It checks that each decision has the required fields and a valid status, that its `project` and `decision` match where the file is, that `supersedes` (one id or a list) points to existing decisions in the same project with no cycle, and that a decision replaced by another is no longer `valid`. Errors must be fixed. Warnings (missing sections, unknown fields, a split into several decisions, a superseded decision that nothing replaces) are advice.
 
 ## Correction
 

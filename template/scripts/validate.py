@@ -23,16 +23,16 @@ from pathlib import Path
 
 ALLOWED_STATUS = ("valid", "superseded", "revoked")
 REQUIRED_FIELDS = ("project", "decision", "status", "decided_by", "decided_at")
-KNOWN_FIELDS = REQUIRED_FIELDS + ("supersedes",)
-REQUIRED_SECTIONS = (
-    "Decision",
-    "Rationale",
-    "Scope",
-    "Explicitly excluded",
-    "Overturn signal",
-)
+LIST_FIELDS = ("supersedes", "superseded_by")
+KNOWN_FIELDS = REQUIRED_FIELDS + LIST_FIELDS
+# 章节标题：每种语言一套，按文件实际使用的那一套检查是否齐全。
+SECTION_SETS = {
+    "English": ("Decision", "Rationale", "Scope", "Explicitly excluded", "Overturn signal"),
+    "Chinese": ("结论", "为什么", "适用范围", "明确不做", "推翻条件"),
+}
 ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 KEY_VALUE = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$")
+LIST_ITEM = re.compile(r"^\s+-\s+(.*)$")
 
 
 class Report:
@@ -56,6 +56,13 @@ class Report:
         return [i for i in self.items if i["level"] == "warning"]
 
 
+def unquote(value):
+    value = value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+        return value[1:-1]
+    return value
+
+
 def parse_decision(path, report):
     """Return (frontmatter dict, body text) or None when the file cannot be parsed."""
     try:
@@ -74,20 +81,33 @@ def parse_decision(path, report):
     block = text[4:end]
     body = text[end + 4 :].lstrip("\n")
     fields = {}
+    last_key = None
     for number, line in enumerate(block.split("\n"), start=2):
         if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        item = LIST_ITEM.match(line)
+        if item and last_key in LIST_FIELDS and isinstance(fields.get(last_key), list):
+            fields[last_key].append(unquote(item.group(1)))
             continue
         match = KEY_VALUE.match(line)
         if not match:
             report.error(path, "frontmatter line %d is not 'key: value': %r" % (number, line))
             continue
         key, value = match.group(1), match.group(2).strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-            value = value[1:-1]
         if key in fields:
             report.error(path, "frontmatter key %r appears more than once" % key)
+            last_key = None
             continue
-        fields[key] = value
+        last_key = key
+        if key in LIST_FIELDS:
+            if value.startswith("[") and value.endswith("]"):
+                fields[key] = [unquote(v) for v in value[1:-1].split(",") if v.strip()]
+            elif value:
+                fields[key] = [unquote(value)]
+            else:
+                fields[key] = []
+        else:
+            fields[key] = unquote(value)
     return fields, body
 
 
@@ -117,8 +137,9 @@ def check_decision(path, project_id, fields, body, report):
             datetime.datetime.strptime(fields["decided_at"], "%Y-%m-%d")
         except ValueError:
             report.error(path, "decided_at %r is not a date in YYYY-MM-DD form" % fields["decided_at"])
-    if fields.get("supersedes") and fields["supersedes"] == fields.get("decision"):
-        report.error(path, "a decision cannot supersede itself")
+    for key in LIST_FIELDS:
+        if fields.get("decision") and fields.get("decision") in fields.get(key, []):
+            report.error(path, "a decision cannot be listed in its own %s" % key)
 
     for key in fields:
         if key not in KNOWN_FIELDS:
@@ -126,60 +147,81 @@ def check_decision(path, project_id, fields, body, report):
     if not ID_PATTERN.match(path.stem):
         report.warning(path, "decision id should use lowercase letters, digits, and hyphens")
 
-    headings = [line[3:].strip() for line in body.split("\n") if line.startswith("## ")]
-    if not any(line.startswith("# ") for line in body.split("\n")):
+    lines = body.split("\n")
+    headings = [line[3:].strip() for line in lines if line.startswith("## ")]
+    if not any(line.startswith("# ") for line in lines):
         report.warning(path, "missing a title line starting with '# '")
-    for section in REQUIRED_SECTIONS:
-        if section not in headings:
-            report.warning(path, "missing section '## %s' (write 'To be validated' if unknown)" % section)
+    best = max(SECTION_SETS, key=lambda name: sum(1 for h in SECTION_SETS[name] if h in headings))
+    if not any(h in headings for h in SECTION_SETS[best]):
+        report.warning(path, "none of the expected sections were found")
+    else:
+        for section in SECTION_SETS[best]:
+            if section not in headings:
+                report.warning(path, "missing section '## %s' (write 'To be validated' if unknown)" % section)
 
 
 def check_history(project_id, decisions, report):
     """Check supersession links across the decisions of one project."""
     by_id = {d["id"]: d for d in decisions}
-    successors = {}
+    successors = {}  # 旧决定 id -> 替代它的决定 id 集合（来自 supersedes 或 superseded_by）
 
     for decision in decisions:
-        target = decision["fields"].get("supersedes")
-        if not target:
-            continue
-        old = by_id.get(target)
-        if old is None:
-            report.error(
-                decision["path"],
-                "supersedes %r, but projects/%s/decisions/%s.md does not exist" % (target, project_id, target),
-            )
-            continue
-        successors.setdefault(target, []).append(decision)
-        if old["fields"].get("status") == "valid":
-            report.error(
-                decision["path"],
-                "supersedes %r, which is still marked valid; mark it superseded or revoked" % target,
-            )
-
-    for target, followers in successors.items():
-        if len(followers) > 1:
-            names = ", ".join(sorted(f["id"] for f in followers))
-            for follower in followers:
+        for target in decision["fields"].get("supersedes", []):
+            old = by_id.get(target)
+            if old is None:
                 report.error(
-                    follower["path"],
-                    "%r is superseded by more than one decision (%s); history must be a single chain"
-                    % (target, names),
+                    decision["path"],
+                    "supersedes %r, but projects/%s/decisions/%s.md does not exist" % (target, project_id, target),
+                )
+                continue
+            successors.setdefault(target, set()).add(decision["id"])
+            if old["fields"].get("status") == "valid":
+                report.error(
+                    decision["path"],
+                    "supersedes %r, which is still marked valid; mark it superseded or revoked" % target,
                 )
 
     for decision in decisions:
-        seen = {decision["id"]}
-        current = decision
-        while True:
-            target = current["fields"].get("supersedes")
-            nxt = by_id.get(target) if target else None
-            if nxt is None:
-                break
-            if nxt["id"] in seen:
-                report.error(decision["path"], "supersedes chain contains a cycle through %r" % nxt["id"])
-                break
-            seen.add(nxt["id"])
-            current = nxt
+        for target in decision["fields"].get("superseded_by", []):
+            new = by_id.get(target)
+            if new is None:
+                report.error(
+                    decision["path"],
+                    "superseded_by %r, but projects/%s/decisions/%s.md does not exist" % (target, project_id, target),
+                )
+                continue
+            successors.setdefault(decision["id"], set()).add(target)
+            if decision["id"] not in new["fields"].get("supersedes", []):
+                report.warning(
+                    decision["path"],
+                    "superseded_by %r, but that decision does not list %r in supersedes" % (target, decision["id"]),
+                )
+        if decision["fields"].get("superseded_by") and decision["fields"].get("status") == "valid":
+            report.warning(decision["path"], "has superseded_by but its status is still valid")
+
+    for target, followers in sorted(successors.items()):
+        if len(followers) > 1:
+            names = ", ".join(sorted(followers))
+            report.warning(
+                by_id[target]["path"],
+                "replaced by more than one decision (%s)" % names,
+            )
+
+    reported = set()
+    for decision in decisions:
+        stack = [(decision["id"], [decision["id"]])]
+        while stack:
+            current, path_ids = stack.pop()
+            for target in by_id[current]["fields"].get("supersedes", []):
+                if target not in by_id:
+                    continue
+                if target in path_ids:
+                    key = frozenset(path_ids + [target])
+                    if key not in reported:
+                        reported.add(key)
+                        report.error(decision["path"], "supersedes chain contains a cycle through %r" % target)
+                    continue
+                stack.append((target, path_ids + [target]))
 
     for decision in decisions:
         if decision["fields"].get("status") == "superseded" and decision["id"] not in successors:

@@ -36,6 +36,26 @@ If X.
 """
 
 
+ZH_BODY = """
+# 标题
+
+## 结论
+做这件事。
+
+## 为什么
+因为。
+
+## 适用范围
+这里。
+
+## 明确不做
+不做那个。
+
+## 推翻条件
+如果 X。
+"""
+
+
 def decision_text(decision, project="demo", status="valid", supersedes=None, body=GOOD_BODY, extra=""):
     lines = [
         "---",
@@ -45,7 +65,10 @@ def decision_text(decision, project="demo", status="valid", supersedes=None, bod
         "decided_by: Test User",
         "decided_at: 2026-09-01",
     ]
-    if supersedes:
+    if isinstance(supersedes, (list, tuple)):
+        lines.append("supersedes:")
+        lines.extend("  - %s" % item for item in supersedes)
+    elif supersedes:
         lines.append("supersedes: %s" % supersedes)
     if extra:
         lines.append(extra)
@@ -111,6 +134,65 @@ class ValidDecisions(RepositoryCase):
         self.assertEqual(report.warnings, [])
 
 
+class RealWorldShapes(RepositoryCase):
+    def test_supersedes_block_list_merging_two_decisions(self):
+        self.write("a", decision_text("a", status="superseded"))
+        self.write("b", decision_text("b", status="superseded"))
+        self.write("c", decision_text("c", supersedes=["a", "b"]))
+        report = self.run_validate()
+        self.assertEqual(report.errors, [])
+        self.assertEqual(report.warnings, [])
+
+    def test_supersedes_inline_list(self):
+        self.write("a", decision_text("a", status="superseded"))
+        self.write("b", decision_text("b", status="superseded"))
+        self.write("c", decision_text("c", extra="supersedes: [a, b]"))
+        report = self.run_validate()
+        self.assertEqual(report.errors, [])
+        self.assertEqual(report.warnings, [])
+
+    def test_splitting_one_decision_into_two_is_a_warning_not_an_error(self):
+        self.write("a", decision_text("a", status="superseded"))
+        self.write("b", decision_text("b", supersedes="a"))
+        self.write("c", decision_text("c", supersedes="a"))
+        self.assertEqual(self.messages("error"), [])
+        self.assertTrue(any("more than one decision (b, c)" in m for m in self.messages("warning")))
+
+    def test_superseded_by_agreeing_with_supersedes(self):
+        self.write("a", decision_text("a", status="superseded", extra="superseded_by: b"))
+        self.write("b", decision_text("b", supersedes="a"))
+        report = self.run_validate()
+        self.assertEqual(report.errors, [])
+        self.assertEqual(report.warnings, [])
+
+    def test_superseded_by_without_matching_supersedes_is_a_warning(self):
+        self.write("a", decision_text("a", status="superseded", extra="superseded_by: b"))
+        self.write("b", decision_text("b"))
+        self.assertEqual(self.messages("error"), [])
+        self.assertTrue(any("does not list 'a' in supersedes" in m for m in self.messages("warning")))
+
+    def test_superseded_by_on_a_valid_decision_is_a_warning(self):
+        self.write("a", decision_text("a", status="valid", extra="superseded_by: b"))
+        self.write("b", decision_text("b", supersedes="a"))
+        self.assertTrue(any("still valid" in m for m in self.messages("warning")))
+
+    def test_chinese_sections_are_accepted(self):
+        self.write("first", decision_text("first", body=ZH_BODY))
+        report = self.run_validate()
+        self.assertEqual(report.errors, [])
+        self.assertEqual(report.warnings, [])
+
+    def test_missing_chinese_section_is_named_in_chinese(self):
+        body = ZH_BODY.replace("## 推翻条件\n如果 X。\n", "")
+        self.write("first", decision_text("first", body=body))
+        self.assertTrue(any("推翻条件" in m for m in self.messages("warning")))
+        self.assertFalse(any("Overturn signal" in m for m in self.messages("warning")))
+
+    def test_unrecognised_sections(self):
+        self.write("first", decision_text("first", body="\n# T\n\n## Something else\ntext\n"))
+        self.assertTrue(any("none of the expected sections" in m for m in self.messages("warning")))
+
+
 class FrontmatterErrors(RepositoryCase):
     def test_missing_frontmatter(self):
         self.write("first", GOOD_BODY)
@@ -151,7 +233,7 @@ class FrontmatterErrors(RepositoryCase):
 
     def test_self_supersede(self):
         self.write("first", decision_text("first", supersedes="first"))
-        self.assertHasError("cannot supersede itself")
+        self.assertHasError("cannot be listed in its own supersedes")
 
 
 class HistoryErrors(RepositoryCase):
@@ -164,11 +246,23 @@ class HistoryErrors(RepositoryCase):
         self.write("second", decision_text("second", supersedes="first"))
         self.assertHasError("still marked valid")
 
-    def test_two_decisions_supersede_the_same_one(self):
-        self.write("first", decision_text("first", status="superseded"))
-        self.write("second", decision_text("second", supersedes="first"))
-        self.write("third", decision_text("third", supersedes="first"))
-        self.assertHasError("more than one decision")
+    def test_dangling_superseded_by(self):
+        self.write("first", decision_text("first", status="superseded", extra="superseded_by: ghost"))
+        self.assertHasError("superseded_by 'ghost'")
+
+    def test_cycle_through_a_list(self):
+        self.write("first", decision_text("first", status="superseded", supersedes=["second"]))
+        self.write("second", decision_text("second", status="superseded", supersedes=["first"]))
+        self.assertHasError("cycle")
+
+    def test_self_in_supersedes_list(self):
+        self.write("first", decision_text("first", supersedes=["first"]))
+        self.assertHasError("cannot be listed in its own supersedes")
+
+    def test_list_item_under_a_scalar_key(self):
+        text = decision_text("first").replace("status: valid", "status: valid\n  - stray")
+        self.write("first", text)
+        self.assertHasError("is not 'key: value'")
 
     def test_cycle(self):
         self.write("first", decision_text("first", status="superseded", supersedes="second"))

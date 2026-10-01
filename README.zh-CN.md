@@ -72,10 +72,16 @@ python3 ~/cairn/scripts/validate.py
 - 缺少必填字段（`project`、`decision`、`status`、`decided_by`、`decided_at`），或者 `status` 不是 `valid`、`superseded`、`revoked` 之一；
 - `decided_at` 不是真实存在的 `YYYY-MM-DD` 日期；
 - `project` 或 `decision` 和文件所在位置不一致；
-- `supersedes` 指向不存在的决定、指向自己，或者形成环；
-- 被替代的决定仍然标着 `valid`，或者有多个决定替代同一个决定。
+- `supersedes`（一个编号，或者一条决定替代多条时写成列表）指向不存在的决定、指向自己，或者形成环；
+- 如果你用了 `superseded_by`，它指向不存在的决定；
+- 被替代的决定仍然标着 `valid`。
 
-缺少章节、出现未知字段、编号格式不常见，或者标为 `superseded` 却没有任何决定替代它，只报**警告**，不算错误。
+下面这些只报**警告**，不算错误：
+
+- 缺少章节。英文标题（`Decision`、`Rationale`、`Scope`、`Explicitly excluded`、`Overturn signal`）和中文标题（`结论`、`为什么`、`适用范围`、`明确不做`、`推翻条件`）都能识别，每个文件按它实际使用的那一套检查；
+- 出现未知字段，或者编号格式不常见；
+- 标为 `superseded` 却没有任何决定替代它；
+- 一条决定被多条替代（拆分），或者 `superseded_by` 指向的决定没有在 `supersedes` 里列出它。
 
 选项：`--json` 输出机器可读结果，`--strict` 让警告也算失败。没有错误时退出码为 0，有错误为 1，仓库读不了为 2。如果脚本存在，Skill 在记录决定之后会自动运行它。
 

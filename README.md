@@ -157,12 +157,7 @@ The Skill installer never enables autosync. When the GitHub CLI is available, se
 
 ## Related projects
 
-| Project | Where the context lives | Pick it when |
-| --- | --- | --- |
-| **Cairn Context** (this one) | A separate repository you own, for one or several projects | You want decisions kept outside the project repository, and an agent that judges when to read or record |
-| [Shared Project Context](https://github.com/alexliu072903-bit/shared-project-context) | A workspace that tracks goals and evidence across people and agents | You need to keep several actors aligned with goals someone set |
-
-[Cairn Lite](https://github.com/alexliu072903-bit/cairn-lite), an earlier project that kept the context inside the project folder, is archived and no longer maintained.
+Two earlier projects are archived and no longer maintained: [Cairn Lite](https://github.com/alexliu072903-bit/cairn-lite), which kept the context inside the project folder, and [Shared Project Context](https://github.com/alexliu072903-bit/shared-project-context), which tracked goals and evidence across people and agents.
 
 ## Privacy boundary
 

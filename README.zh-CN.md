@@ -157,12 +157,7 @@ Skill 安装器不会启用自动同步。GitHub CLI 可用时，如果目标仓
 
 ## 相关项目
 
-| 项目 | 上下文放在哪里 | 适合什么时候用 |
-| --- | --- | --- |
-| **Cairn Context**（本项目） | 你自己拥有的独立仓库，可服务一个或多个项目 | 希望决定留在项目仓库之外，并由 Agent 判断何时读取或记录 |
-| [Shared Project Context](https://github.com/alexliu072903-bit/shared-project-context) | 一个跟踪目标和证据的工作区，覆盖多个人和 Agent | 需要让多个参与者与有人设定的目标保持一致 |
-
-[Cairn Lite](https://github.com/alexliu072903-bit/cairn-lite) 是更早的一个项目，把上下文放在项目目录内部，现已归档，不再维护。
+两个更早的项目已归档，不再维护：[Cairn Lite](https://github.com/alexliu072903-bit/cairn-lite) 把上下文放在项目目录内部；[Shared Project Context](https://github.com/alexliu072903-bit/shared-project-context) 跟踪多个人和 Agent 的目标与证据。
 
 ## 隐私边界
 

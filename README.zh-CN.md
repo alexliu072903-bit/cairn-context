@@ -57,7 +57,7 @@ bash install.sh --identity "你的名字" --project "your-project" --repository 
 
 以下尚未实现，列出来是为了让你知道缺什么：
 
-- 为决定文件提供 `validate` 命令。[Cairn Lite](https://github.com/alexliu072903-bit/cairn-lite) 已经为它自己的格式提供了。
+- 为决定文件提供 `validate` 命令。
 - 一个小索引，让 Agent 不必扫描全部标题就能找到决定。
 - 把重复出现的纠正，整理成经过审核的规则。
 
@@ -104,13 +104,14 @@ Skill 安装器不会启用自动同步。GitHub CLI 可用时，如果目标仓
         └── decisions/
 ```
 
-## 该用哪个项目？
+## 相关项目
 
 | 项目 | 上下文放在哪里 | 适合什么时候用 |
 | --- | --- | --- |
 | **Cairn Context**（本项目） | 你自己拥有的独立仓库，可服务一个或多个项目 | 希望决定留在项目仓库之外，并由 Agent 判断何时读取或记录 |
-| [Cairn Lite](https://github.com/alexliu072903-bit/cairn-lite) | 项目内部，用普通 Markdown 加一个 CLI | 希望知识跟着仓库走，并需要 `validate` 和跨 Agent 测试 |
 | [Shared Project Context](https://github.com/alexliu072903-bit/shared-project-context) | 一个跟踪目标和证据的工作区，覆盖多个人和 Agent | 需要让多个参与者与有人设定的目标保持一致 |
+
+[Cairn Lite](https://github.com/alexliu072903-bit/cairn-lite) 是更早的一个项目，把上下文放在项目目录内部，现已归档，不再维护。
 
 ## 隐私边界
 

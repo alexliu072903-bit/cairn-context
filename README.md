@@ -57,7 +57,7 @@ It refuses to overwrite a non-empty repository or an existing Skill, and it chec
 
 Not built yet, listed so you know what is missing:
 
-- A `validate` command for decision files. [Cairn Lite](https://github.com/alexliu072903-bit/cairn-lite) already has one for its own format.
+- A `validate` command for decision files.
 - A small index that lets the agent find decisions without scanning every title.
 - A way to turn a repeated correction into a reviewed rule.
 
@@ -104,13 +104,14 @@ The Skill installer never enables autosync. When the GitHub CLI is available, se
         └── decisions/
 ```
 
-## Which project do you want?
+## Related projects
 
 | Project | Where the context lives | Pick it when |
 | --- | --- | --- |
 | **Cairn Context** (this one) | A separate repository you own, for one or several projects | You want decisions kept outside the project repository, and an agent that judges when to read or record |
-| [Cairn Lite](https://github.com/alexliu072903-bit/cairn-lite) | Inside the project itself, as plain Markdown with a CLI | You want the knowledge to travel with the repository, with `validate` and a cross-agent test |
 | [Shared Project Context](https://github.com/alexliu072903-bit/shared-project-context) | A workspace that tracks goals and evidence across people and agents | You need to keep several actors aligned with goals someone set |
+
+[Cairn Lite](https://github.com/alexliu072903-bit/cairn-lite), an earlier project that kept the context inside the project folder, is archived and no longer maintained.
 
 ## Privacy boundary
 

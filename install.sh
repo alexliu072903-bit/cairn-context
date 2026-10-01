@@ -6,9 +6,18 @@ SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
 IDENTITY=""
 PROJECT=""
 REPOSITORY=""
+# 每个目标是一个 skills 目录；Codex 目标额外安装 agents/openai.yaml。
+TARGETS=()
 
 usage() {
-  echo 'Usage: install.sh --identity "Your Name" --project project-id --repository /path/to/cairn'
+  cat >&2 <<'USAGE'
+Usage: install.sh --identity "Your Name" --project project-id --repository /path/to/cairn [targets]
+
+Targets (repeat or combine; default is --codex for backward compatibility):
+  --codex              install the Skill to ~/.codex/skills
+  --claude-code        install the Skill to ~/.claude/skills
+  --skills-dir PATH    install the Skill to any other skills directory
+USAGE
 }
 
 while [ "$#" -gt 0 ]; do
@@ -23,6 +32,19 @@ while [ "$#" -gt 0 ]; do
       ;;
     --repository)
       REPOSITORY="${2:-}"
+      shift 2
+      ;;
+    --codex)
+      TARGETS+=("codex:${CODEX_SKILLS_ROOT:-${CAIRN_SKILLS_ROOT:-$HOME/.codex/skills}}")
+      shift
+      ;;
+    --claude-code)
+      TARGETS+=("generic:${CLAUDE_SKILLS_ROOT:-$HOME/.claude/skills}")
+      shift
+      ;;
+    --skills-dir)
+      [ -n "${2:-}" ] || { usage; exit 1; }
+      TARGETS+=("generic:${2/#\~/$HOME}")
       shift 2
       ;;
     *)
@@ -45,22 +67,27 @@ case "$PROJECT" in
 esac
 
 REPOSITORY="${REPOSITORY/#\~/$HOME}"
-CAIRN_SKILLS_ROOT="${CAIRN_SKILLS_ROOT:-$HOME/.codex/skills}"
 CAIRN_CONFIG_ROOT="${CAIRN_CONFIG_ROOT:-$HOME/.cairn}"
-SKILL_TARGET="$CAIRN_SKILLS_ROOT/cairn-context"
 CONFIG_TARGET="$CAIRN_CONFIG_ROOT/config.json"
+
+if [ "${#TARGETS[@]}" -eq 0 ]; then
+  TARGETS+=("codex:${CAIRN_SKILLS_ROOT:-$HOME/.codex/skills}")
+fi
 
 if [ -e "$REPOSITORY" ] && [ -n "$(find "$REPOSITORY" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null)" ]; then
   echo "Refusing to overwrite non-empty repository: $REPOSITORY" >&2
   exit 1
 fi
 
-if [ -e "$SKILL_TARGET" ]; then
-  echo "Refusing to overwrite existing Skill: $SKILL_TARGET" >&2
-  exit 1
-fi
+# 先检查所有目标，任何一个已存在就整体拒绝，避免装到一半。
+for target in "${TARGETS[@]}"; do
+  if [ -e "${target#*:}/cairn-context" ]; then
+    echo "Refusing to overwrite existing Skill: ${target#*:}/cairn-context" >&2
+    exit 1
+  fi
+done
 
-mkdir -p "$REPOSITORY" "$CAIRN_CONFIG_ROOT" "$CAIRN_SKILLS_ROOT"
+mkdir -p "$REPOSITORY" "$CAIRN_CONFIG_ROOT"
 cp -R "$SOURCE_DIR/template/." "$REPOSITORY/"
 mv "$REPOSITORY/projects/__PROJECT__" "$REPOSITORY/projects/$PROJECT"
 
@@ -83,9 +110,16 @@ for name in (readme, state):
     path.write_text(text, encoding="utf-8")
 PY
 
-mkdir -p "$SKILL_TARGET/agents"
-cp "$SOURCE_DIR/SKILL.md" "$SKILL_TARGET/SKILL.md"
-cp "$SOURCE_DIR/agents/openai.yaml" "$SKILL_TARGET/agents/openai.yaml"
+for target in "${TARGETS[@]}"; do
+  kind="${target%%:*}"
+  skill_target="${target#*:}/cairn-context"
+  mkdir -p "$skill_target"
+  cp "$SOURCE_DIR/SKILL.md" "$skill_target/SKILL.md"
+  if [ "$kind" = "codex" ]; then
+    mkdir -p "$skill_target/agents"
+    cp "$SOURCE_DIR/agents/openai.yaml" "$skill_target/agents/openai.yaml"
+  fi
+done
 
 python3 - "$CONFIG_TARGET" "$REPOSITORY" "$IDENTITY" "$PROJECT" <<'PY'
 import json
@@ -103,5 +137,7 @@ with open(target, "w", encoding="utf-8") as handle:
 PY
 
 echo "Created Cairn repository: $REPOSITORY"
-echo "Installed Skill: $SKILL_TARGET"
+for target in "${TARGETS[@]}"; do
+  echo "Installed Skill: ${target#*:}/cairn-context"
+done
 echo "Configured: $CONFIG_TARGET"

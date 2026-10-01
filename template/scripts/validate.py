@@ -19,6 +19,7 @@ import json
 import os
 import re
 import sys
+import types
 from pathlib import Path
 
 ALLOWED_STATUS = ("valid", "superseded", "revoked")
@@ -231,6 +232,27 @@ def check_history(project_id, decisions, report):
             )
 
 
+def check_index(project, report):
+    """Warn when an existing decisions-index.md no longer matches the decisions."""
+    target = project / "decisions-index.md"
+    script = Path(__file__).resolve().with_name("index.py")
+    if not target.is_file() or not script.is_file():
+        return
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("cairn_index", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    me = types.SimpleNamespace(Report=Report, parse_decision=parse_decision)
+    expected, _, _ = module.render_project(me, project)
+    try:
+        current = target.read_text(encoding="utf-8")
+    except OSError:
+        return
+    if current != expected:
+        report.warning(target, "the index is out of date; run scripts/index.py")
+
+
 def validate(root):
     """Validate a repository and return (report, counts)."""
     report = Report()
@@ -256,6 +278,7 @@ def validate(root):
                 check_decision(path, project.name, fields, body, report)
                 parsed.append({"id": path.stem, "path": path, "fields": fields})
         check_history(project.name, parsed, report)
+        check_index(project, report)
     return report, counts
 
 

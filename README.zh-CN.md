@@ -49,15 +49,35 @@ bash install.sh --identity "你的名字" --project "your-project" --repository 
 
 ## 限制
 
-- **没有检索。** Agent 靠扫描文件名和标题决定读哪些决定，没有搜索索引、向量或排序。
+- **靠索引找，不是搜索。** Agent 读一份“每条有效决定一行”的摘要，再决定打开哪几条。没有关键词搜索、向量或排序，Agent 的选择是一种判断，不是保证。
 - **不会学习。** 纠正会追加到 `protocol/benchmark/feedback.md`，但没有任何东西读取它来改变之后的行为。
 
 ## 路线图
 
 以下尚未实现，列出来是为了让你知道缺什么：
 
-- 一个小索引，让 Agent 不必扫描全部标题就能找到决定。
+- 一个关键词搜索命令，用于决定多到没法当一份索引读完的仓库。
 - 把重复出现的纠正，整理成经过审核的规则。
+
+## 更快地找到决定：索引
+
+安装器会为每个项目创建 `projects/<project>/decisions-index.md`：每条**有效**的决定一行，按日期从新到旧。
+
+```text
+- 2026-09-01 plain-markdown: 使用普通 Markdown — 决定保存为普通 Markdown 文件。
+```
+
+每一行的格式是 `日期 编号: 标题 — 决定的第一句话`。Skill 先读这个文件，再只为和任务有关的行打开 `decisions/<编号>.md`。已被替代或撤销的决定不会列出，它们仍留在 `decisions/` 里作为历史。
+
+这个文件是自动生成的，不要手动编辑。你记录或修改决定之后，刷新它：
+
+```bash
+python3 ~/cairn/scripts/index.py
+```
+
+Skill 在记录决定之后会自己刷新。`index.py --check` 在索引缺失或过期时返回 1，`validate.py` 也会对过期的索引给出警告。脚本只用 Python 标准库。
+
+早期版本创建的仓库里没有 `index.py`。把 `template/scripts/index.py`（以及较新的 `validate.py`）复制到它的 `scripts/` 目录，再运行一次即可。
 
 ## 校验你的决定
 
@@ -125,11 +145,13 @@ Skill 安装器不会启用自动同步。GitHub CLI 可用时，如果目标仓
 ├── scripts/
 │   ├── setup-autosync.sh
 │   ├── sync.sh
-│   └── validate.py
+│   ├── validate.py
+│   └── index.py
 └── projects/
     └── your-project/
         ├── README.md
         ├── state.md
+        ├── decisions-index.md   自动生成
         └── decisions/
 ```
 

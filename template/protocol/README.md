@@ -53,6 +53,16 @@ python3 scripts/validate.py
 
 It checks that each decision has the required fields and a valid status, that its `project` and `decision` match where the file is, that `supersedes` (one id or a list) points to existing decisions in the same project with no cycle, and that a decision replaced by another is no longer `valid`. Errors must be fixed. Warnings (missing sections, unknown fields, a split into several decisions, a superseded decision that nothing replaces) are advice.
 
+## Index
+
+`projects/<project>/decisions-index.md` lists every valid decision on one line (date, id, title, first sentence of the decision). It is generated; do not edit it. Read it first, then open only the decisions that matter. After recording or changing a decision, run:
+
+```bash
+python3 scripts/index.py
+```
+
+`python3 scripts/index.py --check` fails when the index is missing or out of date.
+
 ## Correction
 
 When the user says an item was not a decision, was assigned to the wrong project, was inaccurate, or incorrectly superseded an older decision:

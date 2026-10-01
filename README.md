@@ -49,15 +49,35 @@ It refuses to overwrite a non-empty repository or an existing Skill, and it chec
 
 ## Limitations
 
-- **No retrieval.** The agent chooses which decision files to read by scanning names and titles. There is no search index, embedding, or ranking.
+- **Retrieval is by index, not search.** The agent reads a one-line summary of every valid decision and chooses which to open. There is no keyword search, embedding, or ranking, and the agent's choice is a judgment, not a guarantee.
 - **No learning.** Corrections are appended to `protocol/benchmark/feedback.md`. Nothing reads that log to change later behavior.
 
 ## Roadmap
 
 Not built yet, listed so you know what is missing:
 
-- A small index that lets the agent find decisions without scanning every title.
+- A keyword search command, for repositories with too many decisions to read as one index.
 - A way to turn a repeated correction into a reviewed rule.
+
+## Find decisions faster: the index
+
+For each project the installer creates `projects/<project>/decisions-index.md`: one line per **valid** decision, newest first.
+
+```text
+- 2026-09-01 plain-markdown: Use plain Markdown — Decisions are stored as plain Markdown files.
+```
+
+Each line is `date id: title — first sentence of the decision`. The Skill reads this file first, then opens `decisions/<id>.md` only for the lines that matter to the task. Superseded and revoked decisions are not listed; they stay in `decisions/` as history.
+
+The file is generated. Do not edit it. After you record or change a decision, refresh it:
+
+```bash
+python3 ~/cairn/scripts/index.py
+```
+
+The Skill does this itself after it records a decision. `index.py --check` exits with 1 when the index is missing or out of date, and `validate.py` warns about a stale index. The script uses only the standard library.
+
+A repository created by an earlier version does not have `index.py`. Copy `template/scripts/index.py` (and the newer `validate.py`) into its `scripts/` directory, then run it once.
 
 ## Validate your decisions
 
@@ -125,11 +145,13 @@ The Skill installer never enables autosync. When the GitHub CLI is available, se
 ├── scripts/
 │   ├── setup-autosync.sh
 │   ├── sync.sh
-│   └── validate.py
+│   ├── validate.py
+│   └── index.py
 └── projects/
     └── your-project/
         ├── README.md
         ├── state.md
+        ├── decisions-index.md   generated
         └── decisions/
 ```
 

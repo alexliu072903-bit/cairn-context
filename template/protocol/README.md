@@ -43,6 +43,16 @@ Use only confirmed facts. Write `To be validated` when rationale, scope, or over
 
 Never overwrite history. Mark an old decision `superseded` or `revoked`, create a new decision when applicable, and connect it with `supersedes`.
 
+## Validate
+
+After writing or changing decisions, run:
+
+```bash
+python3 scripts/validate.py
+```
+
+It checks that each decision has the required fields and a valid status, that its `project` and `decision` match where the file is, that `supersedes` points to an existing decision in the same project, that history is a single chain with no cycle, and that a decision replaced by another is no longer `valid`. Errors must be fixed. Warnings (missing sections, unknown fields) are advice.
+
 ## Correction
 
 When the user says an item was not a decision, was assigned to the wrong project, was inaccurate, or incorrectly superseded an older decision:

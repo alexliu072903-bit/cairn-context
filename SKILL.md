@@ -53,7 +53,7 @@ Before writing, read `<repository>/protocol/README.md` and follow its schema and
 - Do not modify source code, product documents, design files, or full conversation logs as part of Cairn capture.
 - Do not create a new project unless the repository protocol and user explicitly authorize it.
 
-After a successful write, state the recorded conclusion in one sentence. Respect the repository's configured synchronization mechanism; do not invent another one or force an immediate push.
+After a successful write, if the repository has `scripts/validate.py`, run `python3 <repository>/scripts/validate.py` and fix any error it reports before continuing. Then state the recorded conclusion in one sentence. Respect the repository's configured synchronization mechanism; do not invent another one or force an immediate push.
 
 ## Optional synchronization
 

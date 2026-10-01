@@ -1,3 +1,5 @@
 .DS_Store
 .cairn/
 config.json
+__pycache__/
+*.pyc

@@ -51,15 +51,37 @@ It refuses to overwrite a non-empty repository or an existing Skill, and it chec
 
 - **No retrieval.** The agent chooses which decision files to read by scanning names and titles. There is no search index, embedding, or ranking.
 - **No learning.** Corrections are appended to `protocol/benchmark/feedback.md`. Nothing reads that log to change later behavior.
-- **No validation.** Nothing checks that a decision file has valid frontmatter, valid references, or an intact history chain.
 
 ## Roadmap
 
 Not built yet, listed so you know what is missing:
 
-- A `validate` command for decision files.
 - A small index that lets the agent find decisions without scanning every title.
 - A way to turn a repeated correction into a reviewed rule.
+
+## Validate your decisions
+
+Decision files are plain Markdown with a small frontmatter block. Check them with:
+
+```bash
+python3 ~/cairn/scripts/validate.py
+```
+
+It reads only the standard library, so there is nothing to install. It reports an error when:
+
+- a required field is missing (`project`, `decision`, `status`, `decided_by`, `decided_at`), or `status` is not `valid`, `superseded`, or `revoked`;
+- `decided_at` is not a real date in `YYYY-MM-DD` form;
+- `project` or `decision` does not match where the file lives;
+- `supersedes` points to a decision that does not exist, to itself, or in a loop;
+- the decision it replaces is still marked `valid`, or more than one decision replaces the same one.
+
+It reports a warning, not an error, for a missing section, an unknown field, an unusual id, or a `superseded` decision that nothing replaces.
+
+Options: `--json` for machine-readable output, `--strict` to fail on warnings. The exit code is 0 when there are no errors, 1 when there are, and 2 when the repository cannot be read. The Skill runs it after recording a decision if the script is present.
+
+A repository created by an earlier version does not have the script. Copy `template/scripts/validate.py` from this repository into its `scripts/` directory.
+
+To run this project's own tests: `python3 -m unittest discover -s tests`.
 
 ## Optional 30-minute Git sync
 
@@ -96,7 +118,8 @@ The Skill installer never enables autosync. When the GitHub CLI is available, se
 │       └── cases.yaml
 ├── scripts/
 │   ├── setup-autosync.sh
-│   └── sync.sh
+│   ├── sync.sh
+│   └── validate.py
 └── projects/
     └── your-project/
         ├── README.md

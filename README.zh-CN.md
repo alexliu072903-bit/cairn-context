@@ -51,15 +51,37 @@ bash install.sh --identity "你的名字" --project "your-project" --repository 
 
 - **没有检索。** Agent 靠扫描文件名和标题决定读哪些决定，没有搜索索引、向量或排序。
 - **不会学习。** 纠正会追加到 `protocol/benchmark/feedback.md`，但没有任何东西读取它来改变之后的行为。
-- **没有校验。** 没有工具检查决定文件的 frontmatter、引用和历史链是否完整。
 
 ## 路线图
 
 以下尚未实现，列出来是为了让你知道缺什么：
 
-- 为决定文件提供 `validate` 命令。
 - 一个小索引，让 Agent 不必扫描全部标题就能找到决定。
 - 把重复出现的纠正，整理成经过审核的规则。
+
+## 校验你的决定
+
+决定文件是普通 Markdown，带一小段 frontmatter。用下面的命令检查：
+
+```bash
+python3 ~/cairn/scripts/validate.py
+```
+
+它只用 Python 标准库，不需要安装任何东西。出现下面这些情况会报**错误**：
+
+- 缺少必填字段（`project`、`decision`、`status`、`decided_by`、`decided_at`），或者 `status` 不是 `valid`、`superseded`、`revoked` 之一；
+- `decided_at` 不是真实存在的 `YYYY-MM-DD` 日期；
+- `project` 或 `decision` 和文件所在位置不一致；
+- `supersedes` 指向不存在的决定、指向自己，或者形成环；
+- 被替代的决定仍然标着 `valid`，或者有多个决定替代同一个决定。
+
+缺少章节、出现未知字段、编号格式不常见，或者标为 `superseded` 却没有任何决定替代它，只报**警告**，不算错误。
+
+选项：`--json` 输出机器可读结果，`--strict` 让警告也算失败。没有错误时退出码为 0，有错误为 1，仓库读不了为 2。如果脚本存在，Skill 在记录决定之后会自动运行它。
+
+早期版本创建的仓库里没有这个脚本。把本仓库 `template/scripts/validate.py` 复制到它的 `scripts/` 目录即可。
+
+运行本项目自己的测试：`python3 -m unittest discover -s tests`。
 
 ## 可选：每 30 分钟的 Git 同步
 
@@ -96,7 +118,8 @@ Skill 安装器不会启用自动同步。GitHub CLI 可用时，如果目标仓
 │       └── cases.yaml
 ├── scripts/
 │   ├── setup-autosync.sh
-│   └── sync.sh
+│   ├── sync.sh
+│   └── validate.py
 └── projects/
     └── your-project/
         ├── README.md

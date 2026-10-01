@@ -137,6 +137,7 @@ with open(target, "w", encoding="utf-8") as handle:
 PY
 
 echo "Created Cairn repository: $REPOSITORY"
+echo "Validate decisions with: python3 $REPOSITORY/scripts/validate.py"
 for target in "${TARGETS[@]}"; do
   echo "Installed Skill: ${target#*:}/cairn-context"
 done

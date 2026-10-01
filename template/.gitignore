@@ -1,2 +1,4 @@
 .DS_Store
 .cairn/
+__pycache__/
+*.pyc

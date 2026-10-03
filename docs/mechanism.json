@@ -1,5 +1,6 @@
 {
   "slug": "cairn-context-mechanism",
+  "layout": "filter",
   "colors": { "core": "#73c6d4", "coreSoft": "#e5f5f7" },
   "loop": {
     "kind": "failure",

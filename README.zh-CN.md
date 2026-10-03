@@ -6,6 +6,10 @@
 
 支持 Claude Code、Codex，以及任何能加载 `SKILL.md` 的 Agent。你的决定保存在你自己拥有的仓库里，这个公开仓库只包含 Skill、安装器和模板。
 
+![Cairn Context 机制图：项目决定被筛选为任务 Context，用户纠正回到修订历史](docs/assets/mechanism.zh.svg)
+
+*机制说明图，不是产品截图。已经确认的决定会被筛选成紧凑的任务 Context；用户纠正会回到修订历史。双语生成源位于 [`docs/mechanism.json`](docs/mechanism.json)。*
+
 ## 它做什么
 
 - 只读取与当前任务有关的决定。Agent 按文件名和标题挑选（见“限制”）。

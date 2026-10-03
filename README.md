@@ -6,6 +6,10 @@ A Skill that lets a new agent session find the project decisions that are alread
 
 It works with Claude Code, Codex, and any agent that loads a `SKILL.md`. Your decisions live in a repository you own; this public repository holds only the Skill, an installer, and a template.
 
+![Cairn Context mechanism: decisions are filtered into task context, and corrections return as revisions](docs/assets/mechanism.en.svg)
+
+*Mechanism diagram, not a product screenshot. Confirmed decisions are filtered into compact task context; user corrections return to revision history. The bilingual source is [`docs/mechanism.json`](docs/mechanism.json).*
+
 ## What it does
 
 - Reads only the decisions that bear on the current task. The agent picks them by file name and title (see Limitations).

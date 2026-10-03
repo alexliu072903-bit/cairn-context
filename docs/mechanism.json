@@ -1,0 +1,56 @@
+{
+  "slug": "cairn-context-mechanism",
+  "colors": { "core": "#73c6d4", "coreSoft": "#e5f5f7" },
+  "loop": {
+    "kind": "failure",
+    "label": { "zh": "纠正形成修订记录", "en": "CORRECTIONS BECOME REVISIONS" }
+  },
+  "stages": [
+    {
+      "id": "decisions",
+      "icon": "database",
+      "title": { "zh": "项目决定", "en": "DECISIONS" },
+      "items": [
+        { "zh": "确认的决定", "en": "Confirmed decisions" },
+        { "zh": "倾向与问题", "en": "Inclinations and questions" },
+        { "zh": "保存在仓库", "en": "Stored in a repository" }
+      ]
+    },
+    {
+      "id": "filter",
+      "icon": "filter",
+      "title": { "zh": "相关性筛选", "en": "RELEVANCE FILTER" },
+      "items": [
+        { "zh": "读取标题与文件名", "en": "Read titles and filenames" },
+        { "zh": "只选择相关决定", "en": "Select relevant decisions" }
+      ]
+    },
+    {
+      "id": "context",
+      "icon": "context",
+      "title": { "zh": "任务 CONTEXT", "en": "TASK CONTEXT" },
+      "items": [
+        { "zh": "保持紧凑", "en": "Keep it compact" },
+        { "zh": "保留决定边界", "en": "Preserve decision status" }
+      ]
+    },
+    {
+      "id": "session",
+      "icon": "agent",
+      "title": { "zh": "新 SESSION", "en": "NEW SESSION" },
+      "items": [
+        { "zh": "带着相关背景开工", "en": "Start with relevant context" },
+        { "zh": "不读取全部历史", "en": "Do not load all history" }
+      ]
+    },
+    {
+      "id": "correction",
+      "icon": "document",
+      "title": { "zh": "用户纠正", "en": "CORRECTION" },
+      "items": [
+        { "zh": "先修正事实", "en": "Correct the fact first" },
+        { "zh": "保留替代关系", "en": "Keep revision history" }
+      ]
+    }
+  ]
+}

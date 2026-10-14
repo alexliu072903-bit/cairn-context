@@ -146,7 +146,7 @@ def main(argv=None):
             continue
         text, skipped, counts = render_project(validate, project)
         for path in skipped:
-            print("%s: skipped (cannot be parsed; run validate.py)" % path.relative_to(root), file=sys.stderr)
+            print("%s: skipped (cannot be parsed; run validate.py)" % path.relative_to(root).as_posix(), file=sys.stderr)
         target = project / INDEX_NAME
         if args.stdout:
             print(text)
@@ -155,13 +155,13 @@ def main(argv=None):
         if args.check:
             if current != text:
                 stale = True
-                print("%s is %s" % (target.relative_to(root), "missing" if current is None else "out of date"))
+                print("%s is %s" % (target.relative_to(root).as_posix(), "missing" if current is None else "out of date"))
             continue
         if current != text:
             target.write_text(text, encoding="utf-8")
-            print("Wrote %s (%d listed, %d omitted)" % (target.relative_to(root), counts["listed"], counts["omitted"]))
+            print("Wrote %s (%d listed, %d omitted)" % (target.relative_to(root).as_posix(), counts["listed"], counts["omitted"]))
         else:
-            print("Unchanged %s" % target.relative_to(root))
+            print("Unchanged %s" % target.relative_to(root).as_posix())
     if args.check and stale:
         print("Run: python3 %s" % Path(__file__).name, file=sys.stderr)
         return 1

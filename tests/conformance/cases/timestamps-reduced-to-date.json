@@ -1,0 +1,70 @@
+{
+  "repository": "repos/timestamp",
+  "args": {},
+  "exit_code": 0,
+  "expected": {
+    "schema": 1,
+    "ok": true,
+    "projects": [
+      {
+        "id": "demo",
+        "decisions": [
+          {
+            "id": "with-offset",
+            "project": "demo",
+            "title": "Decision with-offset",
+            "status": "valid",
+            "decided_by": "Pat",
+            "decided_at": "2026-10-12",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/demo/decisions/with-offset.md"
+          },
+          {
+            "id": "with-z",
+            "project": "demo",
+            "title": "Decision with-z",
+            "status": "valid",
+            "decided_by": "Pat",
+            "decided_at": "2026-10-11",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/demo/decisions/with-z.md"
+          }
+        ]
+      }
+    ],
+    "available_projects": [
+      "demo"
+    ],
+    "errors": [],
+    "warnings": [
+      {
+        "level": "warning",
+        "path": "projects/demo/decisions/with-offset.md",
+        "message": "decided_at '2026-10-12T00:30:00+08:00' was reduced to its calendar date"
+      },
+      {
+        "level": "warning",
+        "path": "projects/demo/decisions/with-z.md",
+        "message": "decided_at '2026-10-11 23:59:00' was reduced to its calendar date"
+      }
+    ]
+  }
+}

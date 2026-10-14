@@ -1,0 +1,26 @@
+{
+  "repository": "repos/broken-history",
+  "args": {},
+  "exit_code": 0,
+  "expected": {
+    "schema": 1,
+    "ok": true,
+    "projects": [
+      {
+        "id": "demo",
+        "decisions": []
+      }
+    ],
+    "available_projects": [
+      "demo"
+    ],
+    "errors": [
+      {
+        "level": "error",
+        "path": "projects/demo/decisions/dangling.md",
+        "message": "supersedes target is missing or still marked valid"
+      }
+    ],
+    "warnings": []
+  }
+}

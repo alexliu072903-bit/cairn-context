@@ -1,0 +1,40 @@
+{
+  "repository": "repos/english",
+  "args": {},
+  "exit_code": 0,
+  "expected": {
+    "schema": 1,
+    "ok": true,
+    "projects": [
+      {
+        "id": "demo",
+        "decisions": [
+          {
+            "id": "plain-markdown",
+            "project": "demo",
+            "title": "Use plain Markdown",
+            "status": "valid",
+            "decided_by": "Pat",
+            "decided_at": "2026-10-01",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/demo/decisions/plain-markdown.md"
+          }
+        ]
+      }
+    ],
+    "available_projects": [
+      "demo"
+    ],
+    "errors": [],
+    "warnings": []
+  }
+}

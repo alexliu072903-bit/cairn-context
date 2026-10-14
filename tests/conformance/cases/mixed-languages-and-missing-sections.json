@@ -1,0 +1,99 @@
+{
+  "repository": "repos/mixed",
+  "args": {},
+  "exit_code": 0,
+  "expected": {
+    "schema": 1,
+    "ok": true,
+    "projects": [
+      {
+        "id": "demo",
+        "decisions": [
+          {
+            "id": "chinese-one",
+            "project": "demo",
+            "title": "Decision chinese-one",
+            "status": "valid",
+            "decided_by": "Pat",
+            "decided_at": "2026-10-03",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "zh",
+            "sections": {
+              "decision": "使用普通 Markdown。",
+              "rationale": "方便阅读。",
+              "scope": "所有项目。",
+              "excluded": "无。",
+              "overturn": "待验证"
+            },
+            "file": "projects/demo/decisions/chinese-one.md"
+          },
+          {
+            "id": "partial",
+            "project": "demo",
+            "title": "Partial",
+            "status": "valid",
+            "decided_by": "Pat",
+            "decided_at": "2026-10-03",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Only this section.",
+              "rationale": "",
+              "scope": "",
+              "excluded": "",
+              "overturn": ""
+            },
+            "file": "projects/demo/decisions/partial.md"
+          },
+          {
+            "id": "english-one",
+            "project": "demo",
+            "title": "Decision english-one",
+            "status": "valid",
+            "decided_by": "Pat",
+            "decided_at": "2026-10-02",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/demo/decisions/english-one.md"
+          }
+        ]
+      }
+    ],
+    "available_projects": [
+      "demo"
+    ],
+    "errors": [],
+    "warnings": [
+      {
+        "level": "warning",
+        "path": "projects/demo/decisions/partial.md",
+        "message": "missing section '## Rationale' (write 'To be validated' if unknown)"
+      },
+      {
+        "level": "warning",
+        "path": "projects/demo/decisions/partial.md",
+        "message": "missing section '## Scope' (write 'To be validated' if unknown)"
+      },
+      {
+        "level": "warning",
+        "path": "projects/demo/decisions/partial.md",
+        "message": "missing section '## Explicitly excluded' (write 'To be validated' if unknown)"
+      },
+      {
+        "level": "warning",
+        "path": "projects/demo/decisions/partial.md",
+        "message": "missing section '## Overturn signal' (write 'To be validated' if unknown)"
+      }
+    ]
+  }
+}

@@ -112,6 +112,22 @@ def parse_decision(path, report):
     return fields, body
 
 
+def parse_date(value):
+    """Accept a calendar date only in the canonical, zero-padded form."""
+    if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+        raise ValueError("expected YYYY-MM-DD")
+    return datetime.date.fromisoformat(value)
+
+
+def config_path():
+    """Shared configuration precedence for all entry points."""
+    explicit = os.environ.get("CAIRN_CONFIG")
+    if explicit:
+        return Path(os.path.expanduser(explicit))
+    base = os.environ.get("CAIRN_CONFIG_ROOT") or "~/.cairn"
+    return Path(os.path.expanduser(base)) / "config.json"
+
+
 def check_decision(path, project_id, fields, body, report):
     """Check one decision file on its own."""
     for name in REQUIRED_FIELDS:
@@ -135,7 +151,7 @@ def check_decision(path, project_id, fields, body, report):
         )
     if fields.get("decided_at"):
         try:
-            datetime.datetime.strptime(fields["decided_at"], "%Y-%m-%d")
+            parse_date(fields["decided_at"])
         except ValueError:
             report.error(path, "decided_at %r is not a date in YYYY-MM-DD form" % fields["decided_at"])
     for key in LIST_FIELDS:
@@ -220,7 +236,8 @@ def check_history(project_id, decisions, report):
                     key = frozenset(path_ids + [target])
                     if key not in reported:
                         reported.add(key)
-                        report.error(decision["path"], "supersedes chain contains a cycle through %r" % target)
+                        for member in sorted(key):
+                            report.error(by_id[member]["path"], "supersedes chain contains a cycle through %r" % target)
                     continue
                 stack.append((target, path_ids + [target]))
 
@@ -285,11 +302,11 @@ def validate(root):
 def resolve_repository(argument):
     if argument:
         return Path(os.path.expanduser(argument))
-    config = Path(os.environ.get("CAIRN_CONFIG", os.path.expanduser("~/.cairn/config.json")))
+    config = config_path()
     if config.is_file():
         try:
             data = json.loads(config.read_text(encoding="utf-8"))
-            if data.get("repository"):
+            if isinstance(data, dict) and isinstance(data.get("repository"), str) and data["repository"]:
                 return Path(os.path.expanduser(data["repository"]))
         except (OSError, ValueError):
             pass

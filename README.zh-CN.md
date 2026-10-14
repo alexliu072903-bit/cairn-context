@@ -49,7 +49,7 @@ bash install.sh --identity "你的名字" --project "your-project" --repository 
 2. 写入 `~/.cairn/config.json`；
 3. 把 Skill 安装到每个目标，Codex 目标还会安装 `agents/openai.yaml`。
 
-它不会覆盖非空仓库或已有的 Skill，并且在写入任何文件之前，会先检查所有目标。
+它不会覆盖非空仓库、已有的 Skill，或指向另一个仓库的配置（需要替换时传 `--replace-config`），并且在写入任何文件之前，会先检查所有目标。
 
 ## 限制
 
@@ -113,6 +113,31 @@ python3 ~/cairn/scripts/validate.py
 
 运行本项目自己的测试：`python3 -m unittest discover -s tests`。
 
+## 检查、升级，以及从其他程序使用
+
+`install.sh` 只是 `install.py` 的薄封装，`install.py` 同样可以在 Windows 上运行：
+
+```bash
+python3 install.py status           # Cairn 是否已启用，哪里有问题
+python3 install.py upgrade --repository "$HOME/cairn" --dry-run
+python3 install.py upgrade --repository "$HOME/cairn" --claude-code
+```
+
+`upgrade` 只更新 `scripts/index.py`、`scripts/validate.py`、`scripts/read.py`、
+`protocol/VERSION` 和已安装的 Skill，从不修改决定和项目文件。`install` 与 `upgrade`
+都支持 `--dry-run` 和 `--json`。
+
+需要把决定读成 JSON（例如从某个应用中读取）时：
+
+```bash
+python3 ~/cairn/scripts/read.py --project your-project --since 2026-10-01
+```
+
+工具生成的路径均相对仓库；不会跟随链接文件或链接目录。
+`--project` 加 `--since` 可以只导出某个项目、某天之后的决定。
+用户写入的内容原样保留，分享前仍需检查其中的引用。输入输出格式、状态含义，以及其他实现必须通过的一致性用例，
+见 [`docs/contract.md`](docs/contract.md)。
+
 ## 可选：每 30 分钟的 Git 同步
 
 生成的 Cairn 仓库包含一个可选的 macOS LaunchAgent。它每 30 分钟提交本地改动、变基到远端分支并推送。遇到冲突会停止同步，并保留本地提交，等你自己处理。
@@ -143,6 +168,7 @@ Skill 安装器不会启用自动同步。GitHub CLI 可用时，如果目标仓
 ├── CLAUDE.md              引入 AGENTS.md
 ├── protocol/
 │   ├── README.md
+│   ├── VERSION
 │   └── benchmark/
 │       ├── feedback.md
 │       └── cases.yaml
@@ -150,7 +176,8 @@ Skill 安装器不会启用自动同步。GitHub CLI 可用时，如果目标仓
 │   ├── setup-autosync.sh
 │   ├── sync.sh
 │   ├── validate.py
-│   └── index.py
+│   ├── index.py
+│   └── read.py
 └── projects/
     └── your-project/
         ├── README.md

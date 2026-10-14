@@ -49,7 +49,7 @@ The installer:
 2. writes `~/.cairn/config.json`;
 3. installs the Skill to each target. Codex also gets `agents/openai.yaml`.
 
-It refuses to overwrite a non-empty repository or an existing Skill, and it checks every target before it writes anything.
+It refuses to overwrite a non-empty repository, an existing Skill, or a configuration that points at another repository (pass `--replace-config` to replace it), and it checks every target before it writes anything.
 
 ## Limitations
 
@@ -113,6 +113,32 @@ A repository created by an earlier version does not have the script. Copy `templ
 
 To run this project's own tests: `python3 -m unittest discover -s tests`.
 
+## Check, upgrade, and use from another program
+
+`install.sh` is a thin wrapper around `install.py`, which also works on Windows:
+
+```bash
+python3 install.py status           # is Cairn enabled, and what is wrong
+python3 install.py upgrade --repository "$HOME/cairn" --dry-run
+python3 install.py upgrade --repository "$HOME/cairn" --claude-code
+```
+
+`upgrade` refreshes `scripts/index.py`, `scripts/validate.py`, `scripts/read.py`,
+`protocol/VERSION` and an installed Skill. It never edits decisions or project
+files. `install` and `upgrade` accept `--dry-run` and `--json`.
+
+To read decisions as JSON, for example from an app, use:
+
+```bash
+python3 ~/cairn/scripts/read.py --project your-project --since 2026-10-01
+```
+
+Generated paths are repository-relative; linked files and directories are rejected.
+`--project` plus `--since` exports one project's decisions from one date on.
+Authored content is preserved, so review any references in it before sharing. The input
+and output formats, the status states and the conformance cases that another
+implementation must pass are in [`docs/contract.md`](docs/contract.md).
+
 ## Optional 30-minute Git sync
 
 The generated Cairn repository includes an optional macOS LaunchAgent. Every 30 minutes it commits local changes, rebases onto the remote branch, and pushes. A conflict stops the sync and keeps the local commit for you to resolve.
@@ -143,6 +169,7 @@ The Skill installer never enables autosync. When the GitHub CLI is available, se
 ├── CLAUDE.md              imports AGENTS.md
 ├── protocol/
 │   ├── README.md
+│   ├── VERSION
 │   └── benchmark/
 │       ├── feedback.md
 │       └── cases.yaml
@@ -150,7 +177,8 @@ The Skill installer never enables autosync. When the GitHub CLI is available, se
 │   ├── setup-autosync.sh
 │   ├── sync.sh
 │   ├── validate.py
-│   └── index.py
+│   ├── index.py
+│   └── read.py
 └── projects/
     └── your-project/
         ├── README.md

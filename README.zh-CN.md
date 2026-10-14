@@ -21,7 +21,10 @@
 
 ## 安装
 
-克隆本仓库，再用你使用的 Agent 对应的参数运行安装器。
+需要 Python 3.9 或更新版本，不需要第三方 Python 包。
+克隆这个公开仓库，再用你使用的 Agent 对应的参数运行安装器。
+安装器会另建一个**私有 Context 仓库**保存你的决定。
+如果已经安装，请使用[升级](#已有安装升级)，不要重新安装。
 
 Claude Code：
 
@@ -41,12 +44,19 @@ bash install.sh --identity "你的名字" --project "your-project" --repository 
 bash install.sh --identity "你的名字" --project "your-project" --repository "$HOME/cairn" --skills-dir "/path/to/skills"
 ```
 
-不传目标参数时，和早期版本一样安装到 Codex。
+Windows 请直接运行 Python 安装器（PowerShell）：
+
+```powershell
+python install.py install --identity "你的名字" --project "your-project" --repository "$HOME/cairn" --codex
+```
+
+上面的 Bash 示例适用于 macOS/Linux。`install` 不传目标参数时，和早期版本一样安装到 Codex。
+`upgrade` 的默认行为不同：不指定 Skill 目标时，只升级仓库文件。
 
 安装器会：
 
 1. 用 `template/` 创建本地的 Cairn 仓库；
-2. 写入 `~/.cairn/config.json`；
+2. 写入配置（默认是 `~/.cairn/config.json`）；
 3. 把 Skill 安装到每个目标，Codex 目标还会安装 `agents/openai.yaml`。
 
 它不会覆盖非空仓库、已有的 Skill，或指向另一个仓库的配置（需要替换时传 `--replace-config`），并且在写入任何文件之前，会先检查所有目标。
@@ -81,7 +91,8 @@ python3 ~/cairn/scripts/index.py
 
 Skill 在记录决定之后会自己刷新。`index.py --check` 在索引缺失或过期时返回 1，`validate.py` 也会对过期的索引给出警告。脚本只用 Python 标准库。
 
-早期版本创建的仓库里没有 `index.py`。把 `template/scripts/index.py`（以及较新的 `validate.py`）复制到它的 `scripts/` 目录，再运行一次即可。
+如果早期安装缺少 `index.py`，先[升级仓库脚本](#已有安装升级)，
+再运行一次 `index.py` 创建索引。升级本身不会重新生成索引。
 
 ## 校验你的决定
 
@@ -109,23 +120,54 @@ python3 ~/cairn/scripts/validate.py
 
 选项：`--json` 输出机器可读结果，`--strict` 让警告也算失败。没有错误时退出码为 0，有错误为 1，仓库读不了为 2。如果脚本存在，Skill 在记录决定之后会自动运行它。
 
-早期版本创建的仓库里没有这个脚本。把本仓库 `template/scripts/validate.py` 复制到它的 `scripts/` 目录即可。
+如果早期安装缺少校验脚本，请先[升级仓库脚本](#已有安装升级)。
 
 运行本项目自己的测试：`python3 -m unittest discover -s tests`。
 
-## 检查、升级，以及从其他程序使用
+## 已有安装升级
 
-`install.sh` 只是 `install.py` 的薄封装，`install.py` 同样可以在 Windows 上运行：
+**你平时使用 Agent 的方式基本不变。** 决定仍是 Markdown 文件；本次接入更新没有改变
+项目结构、Skill 定义或协议正文。无需重写决定，也无需重新安装 Cairn。
+JSON 读取器和安装状态检查，是给其他程序新增的入口。
+
+更新这个公开源码仓库，**不会**自动更新已经复制到私有 Context 仓库的脚本，
+也不会更新 Agent 目录里的 Skill。建议升级，以获得读取器修复、统一配置查找和校验规则。
+继续原有 Agent 工作流不需要立即升级，但旧读取器不具备当前版本的导出保护。
+
+在**公开的 `cairn-context` 源码仓库**中、`main` 分支上执行：
 
 ```bash
-python3 install.py status           # Cairn 是否已启用，哪里有问题
-python3 install.py upgrade --repository "$HOME/cairn" --dry-run
-python3 install.py upgrade --repository "$HOME/cairn" --claude-code
+git pull --ff-only
+python3 install.py status --json
+python3 install.py upgrade --dry-run --json
+python3 install.py upgrade --json
 ```
 
-`upgrade` 只更新 `scripts/index.py`、`scripts/validate.py`、`scripts/read.py`、
-`protocol/VERSION` 和已安装的 Skill，从不修改决定和项目文件。`install` 与 `upgrade`
-都支持 `--dry-run` 和 `--json`。
+Windows 把 `python3` 换成 `python`；`install.sh` 是 POSIX 封装。
+这些命令使用配置中的私有仓库。要检查或升级另一个仓库，在对应命令后添加
+`--repository "/path/to/private-cairn"`。
+安装器、读取器、索引器和校验器统一按以下顺序查找配置：
+`CAIRN_CONFIG` → `CAIRN_CONFIG_ROOT/config.json` → `~/.cairn/config.json`。
+
+- `status` 会报告 `ready`、`not_enabled` 或 `error`，以及 `upgrade_available`。
+  `ready` 不代表脚本是最新的，也不代表所有决定都有效；还要分别查看
+  `upgrade_available`、`validation` 和 `stale_indexes`。
+- **不能只看版本号。** 即使 `protocol/VERSION` 已经是 `1`，脚本仍可能缺少后续修复。
+  状态检查也会比较受管理文件的内容，dry run 则会列出实际需要更新的文件。
+- 不加目标参数时，升级只写 `scripts/index.py`、`scripts/validate.py`、
+  `scripts/read.py` 和 `protocol/VERSION`。决定、项目文件、索引、配置、协议正文和
+  Agent 指令都不修改，也不会启用或改变自动同步。
+- **有定制 Skill 时，先不要加目标参数。** 加上 `--codex`、`--claude-code`、
+  `--skills-dir` 或 `--detect`，可能会把有差异的已安装 Skill 替换成公开版本，
+  不会合并你的定制。只更新已经存在的 Skill 目录。
+  如果也要更新未定制的 Codex Skill，先运行
+  `python3 install.py upgrade --codex --dry-run --json`，确认后去掉 `--dry-run` 执行。
+
+校验器现在要求日期补零，例如 `2026-01-01`。JSON 导出会报告并排除历史引用无效或形成环的决定，
+也会拒绝链接文件或链接目录，而不读取链接目标。升级不会自动重写已有记录来修复这些问题。
+升级后，在私有仓库上运行已安装的 `scripts/validate.py`，查看是否有错误需要处理。
+
+## 从其他程序使用
 
 需要把决定读成 JSON（例如从某个应用中读取）时：
 

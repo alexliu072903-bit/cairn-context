@@ -21,7 +21,10 @@ These are instructions to the agent, not enforced guarantees. How well they hold
 
 ## Install
 
-Clone this repository, then run the installer with the agent you use.
+Requires Python 3.9 or newer; no third-party Python packages are needed.
+Clone this public repository, then run the installer with the agent you use.
+The installer creates a **separate private context repository** for your decisions.
+If you already have one, use [upgrade](#existing-installations), not install.
 
 For Claude Code:
 
@@ -41,12 +44,20 @@ For both, pass both flags. For any other agent, point at its skills directory:
 bash install.sh --identity "Your Name" --project "your-project" --repository "$HOME/cairn" --skills-dir "/path/to/skills"
 ```
 
-Without a target flag the installer installs to Codex, as earlier versions did.
+On Windows, run the Python installer directly (PowerShell):
+
+```powershell
+python install.py install --identity "Your Name" --project "your-project" --repository "$HOME/cairn" --codex
+```
+
+The Bash examples above work on macOS/Linux. Without a target flag, `install`
+installs to Codex, as earlier versions did. `upgrade` has a different default:
+it updates repository files only, unless Skill targets are explicitly selected.
 
 The installer:
 
 1. creates a local Cairn repository from `template/`;
-2. writes `~/.cairn/config.json`;
+2. writes the configuration (by default `~/.cairn/config.json`);
 3. installs the Skill to each target. Codex also gets `agents/openai.yaml`.
 
 It refuses to overwrite a non-empty repository, an existing Skill, or a configuration that points at another repository (pass `--replace-config` to replace it), and it checks every target before it writes anything.
@@ -81,7 +92,8 @@ python3 ~/cairn/scripts/index.py
 
 The Skill does this itself after it records a decision. `index.py --check` exits with 1 when the index is missing or out of date, and `validate.py` warns about a stale index. The script uses only the standard library.
 
-A repository created by an earlier version does not have `index.py`. Copy `template/scripts/index.py` (and the newer `validate.py`) into its `scripts/` directory, then run it once.
+If an older installation has no `index.py`, [upgrade the repository scripts](#existing-installations),
+then run `index.py` once to create the index. Upgrade itself does not regenerate indexes.
 
 ## Validate your decisions
 
@@ -109,23 +121,62 @@ It reports a warning, not an error, for:
 
 Options: `--json` for machine-readable output, `--strict` to fail on warnings. The exit code is 0 when there are no errors, 1 when there are, and 2 when the repository cannot be read. The Skill runs it after recording a decision if the script is present.
 
-A repository created by an earlier version does not have the script. Copy `template/scripts/validate.py` from this repository into its `scripts/` directory.
+If an older installation has no validator, [upgrade the repository scripts](#existing-installations).
 
 To run this project's own tests: `python3 -m unittest discover -s tests`.
 
-## Check, upgrade, and use from another program
+## Existing installations
 
-`install.sh` is a thin wrapper around `install.py`, which also works on Windows:
+**Your usual Agent workflow stays the same.** Decisions remain Markdown files;
+project layout, the Skill definition and the protocol text have not changed in
+this integration update. You do not need to rewrite decisions or reinstall Cairn.
+The JSON reader and installation status are additional entry points for programs.
+
+Updating this public source clone does **not** update scripts already copied into
+your private context repository, or Skills installed in an agent's directory.
+Upgrade is recommended for the latest reader fixes, consistent configuration
+lookup and validation. Continuing the existing Agent workflow does not require
+an immediate upgrade, but older readers do not provide the current export safeguards.
+
+Run the following from the **public `cairn-context` source clone**, on `main`:
 
 ```bash
-python3 install.py status           # is Cairn enabled, and what is wrong
-python3 install.py upgrade --repository "$HOME/cairn" --dry-run
-python3 install.py upgrade --repository "$HOME/cairn" --claude-code
+git pull --ff-only
+python3 install.py status --json
+python3 install.py upgrade --dry-run --json
+python3 install.py upgrade --json
 ```
 
-`upgrade` refreshes `scripts/index.py`, `scripts/validate.py`, `scripts/read.py`,
-`protocol/VERSION` and an installed Skill. It never edits decisions or project
-files. `install` and `upgrade` accept `--dry-run` and `--json`.
+On Windows, use `python` in place of `python3`; `install.sh` is a POSIX wrapper.
+The commands use your configured private repository. To inspect or upgrade a
+different one, add `--repository "/path/to/private-cairn"` to the relevant command.
+Configuration lookup for the installer, reader, indexer and validator is
+`CAIRN_CONFIG` → `CAIRN_CONFIG_ROOT/config.json` → `~/.cairn/config.json`.
+
+- `status` reports `ready`, `not_enabled` or `error`, plus `upgrade_available`.
+  `ready` does not mean the scripts are current or every decision is valid;
+  inspect `upgrade_available`, `validation` and `stale_indexes` separately.
+- **Do not rely on the version number alone.** A repository may already have
+  `protocol/VERSION` set to `1` while its scripts predate fixes. Status compares
+  the managed file contents as well; dry run lists the actual updates.
+- With no target flags, upgrade writes only `scripts/index.py`,
+  `scripts/validate.py`, `scripts/read.py` and `protocol/VERSION`. It leaves
+  decisions, project files, indexes, configuration, protocol text and agent
+  instructions unchanged. It does not enable or change autosync.
+- **Keep customized Skills by omitting target flags.** Passing `--codex`,
+  `--claude-code`, `--skills-dir` or `--detect` can replace a differing installed
+  Skill with the public copy; it does not merge your customizations. It updates
+  only existing Skill directories. To refresh an uncustomized Codex Skill too,
+  preview `python3 install.py upgrade --codex --dry-run --json`, then remove
+  `--dry-run` to apply it.
+
+The validator now requires zero-padded dates such as `2026-01-01`. JSON exports
+report and omit decisions with invalid history links or cycles, and reject linked
+files/directories rather than reading their targets. Existing records are not
+rewritten to fix these issues. After upgrading, run the installed
+`scripts/validate.py` against your private repository and review any errors.
+
+## Use from another program
 
 To read decisions as JSON, for example from an app, use:
 

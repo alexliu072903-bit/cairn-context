@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cairn read.py output",
+  "type": "object",
+  "required": ["schema", "ok", "projects", "available_projects", "errors", "warnings"],
+  "properties": {
+    "schema": { "const": 1 },
+    "ok": { "type": "boolean" },
+    "available_projects": { "type": "array", "items": { "type": "string" } },
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "decisions"],
+        "properties": {
+          "id": { "type": "string" },
+          "decisions": { "type": "array", "items": { "$ref": "#/$defs/decision" } }
+        }
+      }
+    },
+    "errors": { "type": "array", "items": { "$ref": "#/$defs/problem" } },
+    "warnings": { "type": "array", "items": { "$ref": "#/$defs/problem" } }
+  },
+  "$defs": {
+    "problem": {
+      "type": "object",
+      "required": ["level", "path", "message"],
+      "properties": {
+        "level": { "enum": ["error", "warning"] },
+        "path": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "required": [
+        "id", "project", "title", "status", "decided_by", "decided_at",
+        "supersedes", "superseded_by", "language", "sections", "file"
+      ],
+      "properties": {
+        "id": { "type": "string" },
+        "project": { "type": "string" },
+        "title": { "type": "string" },
+        "status": { "enum": ["valid", "superseded", "revoked"] },
+        "decided_by": { "type": "string" },
+        "decided_at": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "supersedes": { "type": "array", "items": { "type": "string" } },
+        "superseded_by": { "type": "array", "items": { "type": "string" } },
+        "language": { "enum": ["en", "zh", "unknown"] },
+        "file": { "type": "string" },
+        "sections": {
+          "type": "object",
+          "required": ["decision", "rationale", "scope", "excluded", "overturn"],
+          "properties": {
+            "decision": { "type": "string" },
+            "rationale": { "type": "string" },
+            "scope": { "type": "string" },
+            "excluded": { "type": "string" },
+            "overturn": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

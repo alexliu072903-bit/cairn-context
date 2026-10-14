@@ -1,0 +1,44 @@
+{
+  "repository": "repos/multi",
+  "args": {
+    "projects": [
+      "beta"
+    ]
+  },
+  "exit_code": 0,
+  "expected": {
+    "schema": 1,
+    "ok": true,
+    "projects": [
+      {
+        "id": "beta",
+        "decisions": [
+          {
+            "id": "b-one",
+            "project": "beta",
+            "title": "Decision b-one",
+            "status": "valid",
+            "decided_by": "Pat",
+            "decided_at": "2026-09-15",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/beta/decisions/b-one.md"
+          }
+        ]
+      }
+    ],
+    "available_projects": [
+      "beta"
+    ],
+    "errors": [],
+    "warnings": []
+  }
+}

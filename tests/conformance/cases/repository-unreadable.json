@@ -1,0 +1,19 @@
+{
+  "repository": "repos/nonexistent",
+  "args": {},
+  "exit_code": 2,
+  "expected": {
+    "schema": 1,
+    "ok": false,
+    "projects": [],
+    "available_projects": [],
+    "errors": [
+      {
+        "level": "error",
+        "path": "projects",
+        "message": "repository cannot be read"
+      }
+    ],
+    "warnings": []
+  }
+}

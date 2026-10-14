@@ -1,0 +1,20 @@
+{
+  "repository": "repos/empty",
+  "args": {},
+  "exit_code": 0,
+  "expected": {
+    "schema": 1,
+    "ok": true,
+    "projects": [
+      {
+        "id": "demo",
+        "decisions": []
+      }
+    ],
+    "available_projects": [
+      "demo"
+    ],
+    "errors": [],
+    "warnings": []
+  }
+}

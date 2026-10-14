@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cairn install.py status output",
+  "type": "object",
+  "required": [
+    "schema", "state", "config", "repository", "protocol_version",
+    "current_protocol_version", "upgrade_available", "projects",
+    "stale_indexes", "validation", "hosts", "reasons"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "state": { "enum": ["not_enabled", "error", "ready"] },
+    "config": { "type": "string" },
+    "repository": { "type": ["string", "null"] },
+    "identity": { "type": ["string", "null"] },
+    "default_project": { "type": ["string", "null"] },
+    "protocol_version": { "type": ["integer", "null"] },
+    "current_protocol_version": { "type": "integer" },
+    "upgrade_available": { "type": "boolean" },
+    "projects": { "type": "array", "items": { "type": "string" } },
+    "stale_indexes": { "type": "array", "items": { "type": "string" } },
+    "validation": {
+      "type": ["object", "null"],
+      "required": ["errors", "warnings"],
+      "properties": {
+        "errors": { "type": "integer" },
+        "warnings": { "type": "integer" }
+      }
+    },
+    "hosts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "skills_dir", "host_configured", "skill_installed"],
+        "properties": {
+          "id": { "type": "string" },
+          "skills_dir": { "type": "string" },
+          "host_configured": { "type": "boolean" },
+          "skill_installed": { "type": "boolean" }
+        }
+      }
+    },
+    "reasons": { "type": "array", "items": { "type": "string" } }
+  }
+}

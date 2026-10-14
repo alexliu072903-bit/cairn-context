@@ -277,11 +277,13 @@ class Installer(unittest.TestCase):
     def test_fresh_repository_has_an_index_and_validates_clean(self):
         with tempfile.TemporaryDirectory() as home:
             repository = os.path.join(home, "cairn")
-            env = dict(os.environ, HOME=home)
+            env = dict(os.environ, HOME=home, USERPROFILE=home,
+                       CAIRN_CONFIG=os.path.join(home, ".cairn", "config.json"))
             install = subprocess.run(
                 [
-                    "bash",
-                    str(ROOT / "install.sh"),
+                    sys.executable,
+                    str(ROOT / "install.py"),
+                    "install",
                     "--identity",
                     "Test User",
                     "--project",

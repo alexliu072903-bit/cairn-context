@@ -1,0 +1,102 @@
+{
+  "repository": "repos/history",
+  "args": {},
+  "exit_code": 0,
+  "expected": {
+    "schema": 1,
+    "ok": true,
+    "projects": [
+      {
+        "id": "demo",
+        "decisions": [
+          {
+            "id": "new-ab",
+            "project": "demo",
+            "title": "Decision new-ab",
+            "status": "valid",
+            "decided_by": "Pat",
+            "decided_at": "2026-09-10",
+            "supersedes": [
+              "old-a",
+              "old-b"
+            ],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/demo/decisions/new-ab.md"
+          },
+          {
+            "id": "dropped",
+            "project": "demo",
+            "title": "Decision dropped",
+            "status": "revoked",
+            "decided_by": "Pat",
+            "decided_at": "2026-09-05",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/demo/decisions/dropped.md"
+          },
+          {
+            "id": "old-b",
+            "project": "demo",
+            "title": "Decision old-b",
+            "status": "superseded",
+            "decided_by": "Pat",
+            "decided_at": "2026-09-02",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/demo/decisions/old-b.md"
+          },
+          {
+            "id": "old-a",
+            "project": "demo",
+            "title": "Decision old-a",
+            "status": "superseded",
+            "decided_by": "Pat",
+            "decided_at": "2026-09-01",
+            "supersedes": [],
+            "superseded_by": [
+              "new-ab"
+            ],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/demo/decisions/old-a.md"
+          }
+        ]
+      }
+    ],
+    "available_projects": [
+      "demo"
+    ],
+    "errors": [],
+    "warnings": []
+  }
+}

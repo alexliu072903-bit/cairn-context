@@ -1,0 +1,89 @@
+{
+  "repository": "repos/multi",
+  "args": {
+    "projects": [
+      "alpha",
+      "nope"
+    ]
+  },
+  "exit_code": 1,
+  "expected": {
+    "schema": 1,
+    "ok": false,
+    "projects": [
+      {
+        "id": "alpha",
+        "decisions": [
+          {
+            "id": "a-gone",
+            "project": "alpha",
+            "title": "Decision a-gone",
+            "status": "revoked",
+            "decided_by": "Pat",
+            "decided_at": "2026-10-02",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/alpha/decisions/a-gone.md"
+          },
+          {
+            "id": "a-new",
+            "project": "alpha",
+            "title": "Decision a-new",
+            "status": "valid",
+            "decided_by": "Pat",
+            "decided_at": "2026-10-01",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/alpha/decisions/a-new.md"
+          },
+          {
+            "id": "a-old",
+            "project": "alpha",
+            "title": "Decision a-old",
+            "status": "valid",
+            "decided_by": "Pat",
+            "decided_at": "2026-08-01",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/alpha/decisions/a-old.md"
+          }
+        ]
+      }
+    ],
+    "available_projects": [
+      "alpha"
+    ],
+    "errors": [
+      {
+        "level": "error",
+        "path": "projects/nope",
+        "message": "project not found"
+      }
+    ],
+    "warnings": []
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "repository": "repos/chinese",
+  "args": {},
+  "exit_code": 0,
+  "expected": {
+    "schema": 1,
+    "ok": true,
+    "projects": [
+      {
+        "id": "demo",
+        "decisions": [
+          {
+            "id": "plain-markdown",
+            "project": "demo",
+            "title": "使用普通 Markdown",
+            "status": "valid",
+            "decided_by": "Pat",
+            "decided_at": "2026-10-01",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "zh",
+            "sections": {
+              "decision": "使用普通 Markdown。",
+              "rationale": "方便阅读。",
+              "scope": "所有项目。",
+              "excluded": "无。",
+              "overturn": "待验证"
+            },
+            "file": "projects/demo/decisions/plain-markdown.md"
+          }
+        ]
+      }
+    ],
+    "available_projects": [
+      "demo"
+    ],
+    "errors": [],
+    "warnings": []
+  }
+}

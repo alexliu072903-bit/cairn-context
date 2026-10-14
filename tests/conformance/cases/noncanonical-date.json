@@ -1,0 +1,26 @@
+{
+  "repository": "repos/noncanonical-date",
+  "args": {},
+  "exit_code": 0,
+  "expected": {
+    "schema": 1,
+    "ok": true,
+    "projects": [
+      {
+        "id": "demo",
+        "decisions": []
+      }
+    ],
+    "available_projects": [
+      "demo"
+    ],
+    "errors": [
+      {
+        "level": "error",
+        "path": "projects/demo/decisions/unpadded.md",
+        "message": "decided_at is not a date in YYYY-MM-DD form"
+      }
+    ],
+    "warnings": []
+  }
+}

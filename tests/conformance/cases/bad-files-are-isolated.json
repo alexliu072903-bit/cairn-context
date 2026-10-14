@@ -1,0 +1,66 @@
+{
+  "repository": "repos/isolation",
+  "args": {},
+  "exit_code": 0,
+  "expected": {
+    "schema": 1,
+    "ok": true,
+    "projects": [
+      {
+        "id": "demo",
+        "decisions": [
+          {
+            "id": "good",
+            "project": "demo",
+            "title": "Decision good",
+            "status": "valid",
+            "decided_by": "Pat",
+            "decided_at": "2026-10-01",
+            "supersedes": [],
+            "superseded_by": [],
+            "language": "en",
+            "sections": {
+              "decision": "Use plain Markdown.",
+              "rationale": "It stays readable.",
+              "scope": "All projects.",
+              "excluded": "Nothing.",
+              "overturn": "To be validated"
+            },
+            "file": "projects/demo/decisions/good.md"
+          }
+        ]
+      }
+    ],
+    "available_projects": [
+      "demo"
+    ],
+    "errors": [
+      {
+        "level": "error",
+        "path": "projects/demo/decisions/bad-date.md",
+        "message": "decided_at 'yesterday' is not a date in YYYY-MM-DD form"
+      },
+      {
+        "level": "error",
+        "path": "projects/demo/decisions/bad-status.md",
+        "message": "status 'active' is not one of: valid, superseded, revoked"
+      },
+      {
+        "level": "error",
+        "path": "projects/demo/decisions/no-frontmatter.md",
+        "message": "missing frontmatter: the file must start with a line containing only ---"
+      },
+      {
+        "level": "error",
+        "path": "projects/demo/decisions/wrong-id.md",
+        "message": "field decision is 'something-else' but the file name is 'wrong-id'"
+      },
+      {
+        "level": "error",
+        "path": "projects/demo/decisions/wrong-project.md",
+        "message": "field project is 'other' but the file is under projects/demo/"
+      }
+    ],
+    "warnings": []
+  }
+}

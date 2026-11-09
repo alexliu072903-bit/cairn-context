@@ -245,6 +245,20 @@ class StatusTests(InstallCase):
         self.assertEqual(data["projects"], ["demo"])
 
 
+class UnifiedInstallTests(InstallCase):
+    def test_installer_delivers_writer_and_skill_contract(self):
+        self.install("--codex")
+        self.assertTrue((self.repo / "scripts/cairn.py").is_file())
+        reference = self.home / ".codex/skills/cairn-context/references/access.md"
+        self.assertTrue(reference.is_file())
+        result = subprocess.run([sys.executable, str(self.repo / "scripts/cairn.py"), "list", "--project", "demo"],
+                                env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        data = json.loads(result.stdout)
+        self.assertEqual(data["total"], 0)
+        self.assertTrue(data["complete"])
+
+
 class UpgradeTests(InstallCase):
     def legacy(self):
         """Make the repository look like one created before read.py and the version file existed."""

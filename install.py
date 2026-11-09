@@ -54,6 +54,7 @@ MANAGED_FILES = (
     "scripts/index.py",
     "scripts/validate.py",
     "scripts/read.py",
+    "scripts/cairn.py",
     "protocol/VERSION",
 )
 HOSTS = (
@@ -191,7 +192,8 @@ def fill_placeholders(path, replacements):
 
 
 def skill_files(target):
-    return ("SKILL.md", "agents/openai.yaml") if target["kind"] == "codex" else ("SKILL.md",)
+    common = ("SKILL.md", "references/access.md")
+    return common + ("agents/openai.yaml",) if target["kind"] == "codex" else common
 
 
 def check_destination(root, destination):

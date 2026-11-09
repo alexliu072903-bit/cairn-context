@@ -10,6 +10,24 @@ It works with Claude Code, Codex, and any agent that loads a `SKILL.md`. Your de
 
 *Mechanism diagram, not a product screenshot. Confirmed decisions are filtered into compact task context; user corrections return to revision history. The bilingual source is [`docs/mechanism.json`](docs/mechanism.json).*
 
+## Unified access and Agent connection
+
+Give an Agent the [connection instructions](docs/connect.md). Existing installations
+can reuse their private repository and customized Skill. The installed
+`scripts/cairn.py` provides `projects`, `status`, paginated `list`, exact `get`,
+validated `write`, `recover` and `reindex` through one local JSON interface.
+
+Decision fields, statuses and history rules are unchanged. Navigation uses
+project/path/id and explicit filters, not embeddings or ranked candidates.
+The old `read.py` export remains compatible. See the [access contract](references/access.md)
+for request examples, revision checks, partial-read diagnostics and recovery.
+
+Upgrade without host flags preserves customized Skills; merge the new access
+workflow into a customized Skill deliberately rather than replacing it.
+The writer coordinates Cairn writers, not arbitrary editors or Git: pause
+legacy autosync during writes/pending recovery. No installed data or sync
+configuration is changed simply by updating this source checkout.
+
 ## What it does
 
 - Reads only the decisions that bear on the current task. The agent picks them by file name and title (see Limitations).
@@ -64,14 +82,14 @@ It refuses to overwrite a non-empty repository, an existing Skill, or a configur
 
 ## Limitations
 
-- **Retrieval is by index, not search.** The agent reads a one-line summary of every valid decision and chooses which to open. There is no keyword search, embedding, or ranking, and the agent's choice is a judgment, not a guarantee.
+- **Retrieval is by index, not search.** The agent navigates paginated titles/scopes (or the generated Markdown index) and chooses exact decisions to open. There is no keyword search, embedding, or ranking, and the agent's choice is a judgment, not a guarantee.
 - **No learning.** Corrections are appended to `protocol/benchmark/feedback.md`. Nothing reads that log to change later behavior.
 
 ## Roadmap
 
 Not built yet, listed so you know what is missing:
 
-- A keyword search command, for repositories with too many decisions to read as one index.
+- A thin MCP adapter over the unified local access contract, when a host needs it.
 - A way to turn a repeated correction into a reviewed rule.
 
 ## Find decisions faster: the index
@@ -160,7 +178,7 @@ Configuration lookup for the installer, reader, indexer and validator is
   `protocol/VERSION` set to `1` while its scripts predate fixes. Status compares
   the managed file contents as well; dry run lists the actual updates.
 - With no target flags, upgrade writes only `scripts/index.py`,
-  `scripts/validate.py`, `scripts/read.py` and `protocol/VERSION`. It leaves
+  `scripts/validate.py`, `scripts/read.py`, `scripts/cairn.py` and `protocol/VERSION`. It leaves
   decisions, project files, indexes, configuration, protocol text and agent
   instructions unchanged. It does not enable or change autosync.
 - **Keep customized Skills by omitting target flags.** Passing `--codex`,

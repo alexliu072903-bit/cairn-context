@@ -324,5 +324,20 @@ class RecoveryTests(unittest.TestCase):
         feedback = (self.root / 'protocol/benchmark/feedback.md').read_text()
         self.assertEqual(feedback.count('## Correction'), 2)
 
+    def test_correction_recovery_preserves_crlf_feedback_bytes(self):
+        path = self.directory / 'one.md'
+        path.write_bytes(decision('demo', 'one').replace('\n', '\r\n').encode())
+        feedback = self.root / 'protocol/benchmark/feedback.md'
+        feedback.parent.mkdir(parents=True)
+        feedback.write_bytes(b'# Feedback\r\nExisting evidence.\r\n')
+        payload = self.request('correct', id='one', content=decision('demo', 'one', body='# Fixed\n\n## Decision\nDo it.\n'),
+                               expected={'one': self.get()['revision']})
+        self.interrupt(payload, 'decisions-index.md')
+        before = feedback.read_bytes()
+        _, result = self.call('recover', '--project', 'demo', '--request-id', 'request-1')
+        self.assertTrue(result['ok'], result)
+        self.assertEqual(feedback.read_bytes(), before)
+        self.assertTrue(before.startswith(b'# Feedback\r\nExisting evidence.\r\n'))
+
 if __name__ == '__main__':
     unittest.main()

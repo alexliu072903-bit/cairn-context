@@ -247,7 +247,7 @@ def resume(root, project, state, journal, receipt_path):
     feedback = journal.get('feedback')
     feedback_path = safe(root, root / 'protocol/benchmark/feedback.md')
     if feedback:
-        actual = feedback_path.read_text(encoding='utf-8') if feedback_path.exists() else ''
+        actual = feedback_path.read_bytes().decode('utf-8') if feedback_path.exists() else ''
         if actual not in (feedback['before'], feedback['after']):
             raise Refusal('RECOVERY_CONFLICT', 'Correction feedback changed; inspect before recovering.')
     current = read_files(root, project)
@@ -328,7 +328,7 @@ def write(root, request):
                        source=request['source'], before=before, after=after, warnings=warnings, phase='prepared')
         if request['action'] == 'correct':
             path = safe(root, root / 'protocol/benchmark/feedback.md')
-            prior = path.read_text(encoding='utf-8') if path.exists() else ''
+            prior = path.read_bytes().decode('utf-8') if path.exists() else ''
             name = request['id'] + '.md'
             entry = '\n## Correction %s/%s\n\nSource: %s\n\nOriginal record:\n\n%s\n\nCorrected record (correct behavior):\n\n%s\n' % (project, request_id, request['source'], before[name], after[name])
             journal['feedback'] = {'before': prior, 'after': prior + entry}

@@ -10,6 +10,20 @@
 
 *机制说明图，不是产品截图。已经确认的决定会被筛选成紧凑的任务 Context；用户纠正会回到修订历史。双语生成源位于 [`docs/mechanism.json`](docs/mechanism.json)。*
 
+## 统一读写与 Agent 接入
+
+可以把[接入说明](docs/connect.md)交给 Agent，沿用现有私有仓库和自定义 Skill。
+安装后的 `scripts/cairn.py` 提供项目发现、状态检查、分页目录、按 ID 读取、
+统一写入、恢复与索引刷新，均通过本地 JSON 接口使用。
+
+决定字段、状态与历史规则保持不变。按项目、路径和 ID 导航，不引入向量检索、
+候选排名或 Basic Memory 依赖；旧 `read.py` 导出继续兼容。
+[接口契约](references/access.md)包含写入示例、内容版本检查与中断恢复步骤。
+
+升级时不带宿主参数，可保留已有自定义 Skill；需要采用新入口时合并工作流，
+不要直接覆盖定制规则。写入锁协调 Cairn 自身，不协调任意编辑器或 Git；
+写入或待恢复期间应暂停旧版自动同步。更新源码不会自动更新个人安装或启用同步。
+
 ## 它做什么
 
 - 只读取与当前任务有关的决定。Agent 按文件名和标题挑选（见“限制”）。
@@ -63,14 +77,14 @@ python install.py install --identity "你的名字" --project "your-project" --r
 
 ## 限制
 
-- **靠索引找，不是搜索。** Agent 读一份“每条有效决定一行”的摘要，再决定打开哪几条。没有关键词搜索、向量或排序，Agent 的选择是一种判断，不是保证。
+- **靠索引找，不是搜索。** Agent 浏览分页标题与范围（或生成的 Markdown 索引），再按 ID 打开决定。没有关键词搜索、向量或排序，Agent 的选择是一种判断，不是保证。
 - **不会学习。** 纠正会追加到 `protocol/benchmark/feedback.md`，但没有任何东西读取它来改变之后的行为。
 
 ## 路线图
 
 以下尚未实现，列出来是为了让你知道缺什么：
 
-- 一个关键词搜索命令，用于决定多到没法当一份索引读完的仓库。
+- 在宿主需要时，为统一的本地读写契约增加一层 MCP 适配。
 - 把重复出现的纠正，整理成经过审核的规则。
 
 ## 更快地找到决定：索引
@@ -155,7 +169,7 @@ Windows 把 `python3` 换成 `python`；`install.sh` 是 POSIX 封装。
 - **不能只看版本号。** 即使 `protocol/VERSION` 已经是 `1`，脚本仍可能缺少后续修复。
   状态检查也会比较受管理文件的内容，dry run 则会列出实际需要更新的文件。
 - 不加目标参数时，升级只写 `scripts/index.py`、`scripts/validate.py`、
-  `scripts/read.py` 和 `protocol/VERSION`。决定、项目文件、索引、配置、协议正文和
+  `scripts/read.py`、`scripts/cairn.py` 和 `protocol/VERSION`。决定、项目文件、索引、配置、协议正文和
   Agent 指令都不修改，也不会启用或改变自动同步。
 - **有定制 Skill 时，先不要加目标参数。** 加上 `--codex`、`--claude-code`、
   `--skills-dir` 或 `--detect`，可能会把有差异的已安装 Skill 替换成公开版本，

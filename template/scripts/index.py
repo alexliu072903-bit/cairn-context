@@ -20,6 +20,8 @@ Only the Python standard library is used.
 import argparse
 import importlib.util
 import re
+import os
+import tempfile
 import sys
 from pathlib import Path
 
@@ -78,30 +80,19 @@ def title_of(body, fallback):
 
 def render_project(validate, project_dir):
     """Return (index text, skipped paths, counts) for one project directory."""
-    report = validate.Report()
-    entries = []
-    skipped = []
-    omitted = 0
-    decisions_dir = project_dir / "decisions"
-    if decisions_dir.is_dir():
-        for path in sorted(decisions_dir.glob("*.md")):
-            result = validate.parse_decision(path, report)
-            if result is None:
-                skipped.append(path)
-                continue
-            fields, body = result
-            status = fields.get("status")
-            if status != "valid":
-                omitted += 1
-                continue
-            entries.append(
-                {
-                    "id": path.stem,
-                    "date": fields.get("decided_at", ""),
-                    "title": title_of(body, path.stem),
-                    "summary": first_sentence(body),
-                }
-            )
+    # The same reader validates fields and the complete history before indexing.
+    spec = importlib.util.spec_from_file_location("cairn_reader", Path(__file__).with_name("read.py"))
+    reader = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(reader)
+    result, _ = reader.read_repository(reader.load_validate(), project_dir.parent.parent, [project_dir.name])
+    skipped = [project_dir.parent.parent / problem["path"] for problem in result["errors"]]
+    records = result["projects"][0]["decisions"] if result["projects"] else []
+    omitted = sum(record["status"] != "valid" for record in records)
+    entries = [
+        {"id": record["id"], "date": record["decided_at"], "title": record["title"],
+         "summary": first_sentence("## Decision\n" + record["sections"]["decision"])}
+        for record in records if record["status"] == "valid"
+    ]
     entries.sort(key=lambda e: e["id"])
     entries.sort(key=lambda e: e["date"], reverse=True)
 
@@ -118,6 +109,8 @@ def render_project(validate, project_dir):
             lines.append(line)
     else:
         lines.append("No valid decisions yet.")
+    if skipped:
+        lines.append("\nIncomplete: invalid records were excluded; run scripts/validate.py.")
     if omitted:
         lines.append(
             "\n%d superseded or revoked decision(s) are not listed; they are kept in "
@@ -134,15 +127,24 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     validate = load_validate()
-    root = validate.resolve_repository(args.repository)
+    root = validate.resolve_repository(args.repository).resolve()
     projects_dir = root / "projects"
     if not projects_dir.is_dir():
         print("no projects/ directory found in %s" % root, file=sys.stderr)
         return 2
 
     stale = False
+    refused = False
     for project in sorted(p for p in projects_dir.iterdir() if p.is_dir()):
         if project.name.startswith("_"):
+            continue
+        if project.is_symlink() or (project / "decisions-index.md").is_symlink():
+            print("refusing linked project or index", file=sys.stderr)
+            refused = True
+            continue
+        if (project / ".cairn" / "pending.json").exists():
+            print("%s: pending recovery; index not changed" % project.name, file=sys.stderr)
+            refused = True
             continue
         text, skipped, counts = render_project(validate, project)
         for path in skipped:
@@ -158,10 +160,23 @@ def main(argv=None):
                 print("%s is %s" % (target.relative_to(root).as_posix(), "missing" if current is None else "out of date"))
             continue
         if current != text:
-            target.write_text(text, encoding="utf-8")
+            # Replace the directory entry; never truncate a linked external inode.
+            fd, temporary = tempfile.mkstemp(prefix=".cairn-index-", dir=project)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8", newline="") as stream:
+                    stream.write(text)
+                if (project / ".cairn" / "pending.json").exists():
+                    refused = True
+                    continue
+                os.replace(temporary, target)
+            finally:
+                if os.path.exists(temporary):
+                    os.unlink(temporary)
             print("Wrote %s (%d listed, %d omitted)" % (target.relative_to(root).as_posix(), counts["listed"], counts["omitted"]))
         else:
             print("Unchanged %s" % target.relative_to(root).as_posix())
+    if refused:
+        return 2
     if args.check and stale:
         print("Run: python3 %s" % Path(__file__).name, file=sys.stderr)
         return 1

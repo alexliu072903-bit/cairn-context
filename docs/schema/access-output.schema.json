@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Cairn unified CLI envelope v1",
+  "description": "Command-specific fields and semantics are defined in references/access.md. Legacy read.py has its own unchanged schema.",
+  "type": "object",
+  "required": ["schema", "ok"],
+  "properties": {
+    "schema": {"const": 1},
+    "ok": {"type": "boolean"},
+    "code": {"type": "string"},
+    "message": {"type": "string"},
+    "project": {"type": "string"},
+    "snapshot": {"type": "string"},
+    "complete": {"type": "boolean"},
+    "errors": {"type": "array"},
+    "warnings": {"type": "array"},
+    "items": {"type": "array"},
+    "total": {"type": "integer"},
+    "page": {"type": "integer"},
+    "decision": {"type": "object"},
+    "records": {"type": "array"},
+    "state": {"enum": ["ready", "error", "recovery_required"]},
+    "index": {"enum": ["current", "stale"]}
+  }
+}

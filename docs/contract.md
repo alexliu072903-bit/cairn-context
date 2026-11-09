@@ -8,6 +8,13 @@ There is one reference implementation, written in Python's standard library. An
 integration either calls it or re-implements it and proves it agrees with the
 conformance cases.
 
+## Unified navigation and writes
+
+The [unified access contract](../references/access.md) adds `scripts/cairn.py`
+without changing the legacy export schema below. The Markdown index now uses
+the same file/history validation as the reader; invalid entries are diagnosed
+and omitted. Both readers refuse projects with a pending unified write.
+
 ## What an integration may rely on
 
 | Need | Use | Output |
@@ -109,14 +116,13 @@ error}` when `--json` is supplied.
 
 `protocol/VERSION` holds the repository's protocol version. A repository without
 the file is version 0. `upgrade` updates only `scripts/index.py`,
-`scripts/validate.py`, `scripts/read.py` and `protocol/VERSION`, plus an
+`scripts/validate.py`, `scripts/read.py`, `scripts/cairn.py` and `protocol/VERSION`, plus an
 installed Skill when it differs. It never edits decisions, project files, the
 protocol text or the agent instruction files. All destinations are checked before
 writing; linked files, redirected directories and hard-linked managed files are
 refused with `code: "unsafe_path"`. Each updated file is replaced atomically.
 Specify Skill targets explicitly (`--codex`, `--claude-code`, `--skills-dir`) or
-use `--detect`; an omitted target list upgrades only repository files. A Codex
-Skill includes both `SKILL.md` and `agents/openai.yaml`.
+use `--detect`; an omitted target list upgrades only repository files. Every installed Skill includes `references/access.md`; a Codex Skill also includes `agents/openai.yaml`.
 
 ## Conformance cases
 

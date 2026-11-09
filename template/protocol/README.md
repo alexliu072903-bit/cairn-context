@@ -71,3 +71,13 @@ When the user says an item was not a decision, was assigned to the wrong project
 2. append the original context, Agent action, user correction, and correct behavior to `protocol/benchmark/feedback.md`;
 3. do not change this protocol from one correction;
 4. promote repeated or generalizable failures to `protocol/benchmark/cases.yaml` only when they justify a stable test.
+
+## Unified transport
+
+When `scripts/cairn.py` is installed, agents use its unified write/recovery
+workflow. This changes the transport, not which statements qualify as decisions
+or the fields/statuses above. The Agent still checks explicit user intent,
+applicable scope, duplication and semantic conflicts. The writer checks file
+revisions and history, preserves records, and refreshes indexes. Do not bypass
+a conflict or pending recovery with direct file writes. Existing custom Protocols
+are not overwritten by installer upgrades.

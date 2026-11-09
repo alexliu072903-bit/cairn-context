@@ -25,6 +25,7 @@ Only the Python standard library is used.
 """
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import re
@@ -131,9 +132,10 @@ def diagnostic_message(item):
     return message
 
 
-def read_decision(validate, root, project_id, path, report):
+def read_decision(validate, root, project_id, path, report, include_revisions=False):
     """Return the decision record for one file, or None when it cannot be trusted."""
     first_problem = len(report.items)
+    before = path.read_bytes() if include_revisions else None
     parsed = validate.parse_decision(path, report)
     if parsed is not None:
         fields, body = parsed
@@ -165,10 +167,27 @@ def read_decision(validate, root, project_id, path, report):
     }
     for key, names in SECTION_KEYS:
         record["sections"][key] = next((sections[n] for n in names if n in sections), "")
+    if include_revisions:
+        if path.read_bytes() != before:
+            report.error(path, "decision changed while reading; retry")
+            return None, history
+        record["revision"] = hashlib.sha256(before).hexdigest()
+        record["content"] = before.decode("utf-8")
     return record, history
 
 
-def read_repository(validate, root, projects=None, since=None, statuses=None):
+def directory_revision(directory, root):
+    """Detect edits during a read without following linked decision files."""
+    if not safe_path(directory, root) or not directory.is_dir():
+        return ()
+    result = []
+    for path in sorted(directory.glob("*.md")):
+        stat = path.lstat()
+        result.append((path.name, stat.st_ino, stat.st_size, stat.st_mtime_ns))
+    return tuple(result)
+
+
+def read_repository(validate, root, projects=None, since=None, statuses=None, include_revisions=False):
     """Return (result dict, missing project ids). Raises FileNotFoundError without projects/."""
     root = root.resolve()
     projects_dir = root / "projects"
@@ -190,18 +209,29 @@ def read_repository(validate, root, projects=None, since=None, statuses=None):
         history = []
         project_dir = projects_dir / name
         decisions_dir = project_dir / "decisions"
-        if not safe_path(decisions_dir, root):
+        initial_revision = directory_revision(decisions_dir, root)
+        pending = project_dir / ".cairn" / "pending.json"
+        if pending.exists() or pending.is_symlink():
+            report.error(project_dir, "decision write is pending recovery; no records exported")
+        elif not safe_path(decisions_dir, root):
             report.error(project_dir, "linked project or decisions directory is not exported")
         elif decisions_dir.is_dir():
             for path in sorted(decisions_dir.glob("*.md")):
                 if not safe_path(path, root):
                     report.error(path, "linked decision file is not exported")
                     continue
-                record, parsed = read_decision(validate, root, name, path, report)
+                record, parsed = read_decision(validate, root, name, path, report, include_revisions)
                 if parsed is not None:
                     history.append(parsed)
                 if record is not None:
                     records.append(record)
+        if pending.exists() or pending.is_symlink():
+            records = []
+            if not report.errors:
+                report.error(project_dir, "decision write is pending recovery; retry after recovery")
+        if directory_revision(decisions_dir, root) != initial_revision:
+            records = []
+            report.error(project_dir, "project changed while reading; retry")
         # Validate all selected-project history before applying date/status filters.
         validate.check_history(name, history, report)
         invalid = {p["path"] for p in report.errors}

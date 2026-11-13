@@ -11,7 +11,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Ubuntu 24.04 has setup-python builds for both supported versions.
+        os: [ubuntu-24.04, macos-latest, windows-latest]
         python: ["3.9", "3.12"]
     steps:
       - uses: actions/checkout@v4

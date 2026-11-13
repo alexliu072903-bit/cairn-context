@@ -122,7 +122,7 @@ protocol text or the agent instruction files. All destinations are checked befor
 writing; linked files, redirected directories and hard-linked managed files are
 refused with `code: "unsafe_path"`. Each updated file is replaced atomically.
 Specify Skill targets explicitly (`--codex`, `--claude-code`, `--skills-dir`) or
-use `--detect`; an omitted target list upgrades only repository files. Every installed Skill includes `references/access.md`; a Codex Skill also includes `agents/openai.yaml`.
+use `--detect`; an omitted target list upgrades only repository files. Every installed Skill includes the recall, record, operations and unified-access references; a Codex Skill also includes `agents/openai.yaml`.
 
 ## Conformance cases
 

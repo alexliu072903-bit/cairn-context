@@ -15,6 +15,7 @@ import schema_check  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 INSTALL = ROOT / "install.py"
+SKILL_REFERENCES = ("access.md", "recall.md", "record.md", "operations.md")
 STATUS_SCHEMA = json.loads(
     (ROOT / "docs" / "schema" / "status-output.schema.json").read_text(encoding="utf-8")
 )
@@ -81,6 +82,8 @@ class InstallTests(InstallCase):
             self.assertIn("demo", text)
         self.assertTrue((project / "decisions-index.md").is_file())
         self.assertTrue((self.skill() / "SKILL.md").is_file())
+        for name in SKILL_REFERENCES:
+            self.assertTrue((self.skill() / "references" / name).is_file())
         self.assertFalse((self.skill() / "agents").exists())
         self.assertEqual(
             json.loads(self.config.read_text(encoding="utf-8")),
@@ -249,8 +252,9 @@ class UnifiedInstallTests(InstallCase):
     def test_installer_delivers_writer_and_skill_contract(self):
         self.install("--codex")
         self.assertTrue((self.repo / "scripts/cairn.py").is_file())
-        reference = self.home / ".codex/skills/cairn-context/references/access.md"
-        self.assertTrue(reference.is_file())
+        references = self.home / ".codex/skills/cairn-context/references"
+        for name in SKILL_REFERENCES:
+            self.assertTrue((references / name).is_file())
         result = subprocess.run([sys.executable, str(self.repo / "scripts/cairn.py"), "list", "--project", "demo"],
                                 env=self.env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -315,6 +319,15 @@ class UpgradeTests(InstallCase):
             (ROOT / "SKILL.md").read_text(encoding="utf-8"),
         )
         self.assertFalse((self.home / ".codex").exists())
+
+    def test_upgrade_adds_a_missing_skill_reference(self):
+        self.install("--claude-code")
+        missing = self.skill() / "references" / "record.md"
+        missing.unlink()
+        self.run_install(
+            "upgrade", "--repository", str(self.repo), "--claude-code", "--json"
+        )
+        self.assertEqual(missing.read_bytes(), (ROOT / "references" / "record.md").read_bytes())
 
     def test_upgrade_requires_a_readable_repository(self):
         result = self.run_install("upgrade", "--repository", str(self.repo), "--json", expect=1)

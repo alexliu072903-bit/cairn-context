@@ -2,274 +2,262 @@
 
 **English | [中文](README.zh-CN.md)**
 
-A Skill that lets a new agent session find the project decisions that are already confirmed and relevant to the task, so you stop re-explaining them.
+Decision memory that follows the work, not the Agent.
 
-It works with Claude Code, Codex, and any agent that loads a `SKILL.md`. Your decisions live in a repository you own; this public repository holds only the Skill, an installer, and a template.
+Cairn keeps confirmed project decisions in a repository you own, then brings the right decision into the right task Context at the right time. It works with Claude Code, Codex, and other local Agents that can load a `SKILL.md`, read files, and run Python.
 
-![Cairn recall layers: current host context, thread brief, and the decision repository](docs/assets/mechanism.en.svg)
+![Cairn Context architecture: routed Skill and three-layer recall](docs/assets/mechanism.en.svg)
 
-*Mechanism diagram. A task can reuse a thread brief; the repository remains authoritative. [Bilingual source](docs/mechanism.json).*
+*The Agent judges relevance. L2 is temporary and verifiable. L3 preserves durable truth.*
 
-## Unified access and Agent connection
+## What changed
 
-Give an Agent the [connection instructions](docs/connect.md). Existing installations
-can reuse their private repository and customized Skill. The installed
-`scripts/cairn.py` provides `brief`/`brief-check`, `projects`, `status`,
-paginated `list`, exact `get`, validated `write`, `recover` and `reindex` through
-one local JSON interface.
+Cairn has two cooperating planes.
 
-For ordinary recall, the Agent uses current host Context (L1), then a short-lived,
-host-owned project/thread brief (L2). If the candidates are insufficient, it
-opens the repository (L3), the sole source of truth. Known IDs, high-impact
-checks and corrections, revocations or replacements go directly to L3. A
-change to any decision in the project invalidates the old brief, even if
-the decision did not match its focus.
+### Skill control plane
 
-Decision fields, statuses, history rules and the legacy `read.py` export are
-unchanged. See the [access contract](references/access.md) for examples,
-revision checks, partial-read diagnostics and recovery.
+`SKILL.md` stays small. It keeps the product boundary, six hard rules, configuration resolution, and task routing. The Agent loads one focused contract only when the task needs it:
 
-Upgrade without host flags preserves customized Skills; merge the new access
-workflow into a customized Skill deliberately rather than replacing it.
-The writer coordinates Cairn writers, not arbitrary editors or Git: pause
-legacy autosync during writes/pending recovery. No installed data or sync
-configuration is changed simply by updating this source checkout.
+- `references/recall.md` — find decisions and diagnose incomplete Context;
+- `references/record.md` — create, supersede, revoke, or correct a decision;
+- `references/operations.md` — recover interrupted writes and handle synchronization;
+- `references/access.md` — the exact CLI and JSON contract.
+
+### Context data plane
+
+Cairn uses three layers without changing what a durable decision is:
+
+1. **L1 · Current Context** — the host Agent's current task, user input, and evidence already loaded.
+2. **L2 · Hot Context brief** — a short-lived, task-scoped set of candidate decisions held by the host.
+3. **L3 · Long-term decisions** — the repository, the sole source of truth for original records, history, corrections, and revisions.
+
+If L1 already has enough evidence, the Agent continues. If a decision is missing, it checks L2. If L2 is incomplete, stale, truncated, conflicted, or insufficient, the Agent reads the exact L3 record. Known decision IDs and lifecycle changes go directly to L3.
 
 ## What it does
 
-- Brings a small set of decision candidates into the current task. The Agent opens original records when more evidence is needed.
-- Tells a confirmed decision apart from an inclination, an open question, and a temporary experiment. If the signal is unclear, it asks once.
-- Keeps history when a decision changes. The old file stays, and a `supersedes` link points from the new one to it.
-- Logs your corrections, so a wrong judgment can be traced.
+- Preserves confirmed decisions across Agent sessions and tools.
+- Returns a bounded candidate brief for one project and work thread.
+- Verifies a brief against the current project snapshot before reuse.
+- Keeps the original decision, scope, exclusions, overturn conditions, source, and revision available in L3.
+- Preserves history when a decision is replaced or revoked.
+- Records corrections without silently rewriting the past.
+- Refuses incomplete, conflicting, stale, or unsafe operations with structured diagnostics.
 
-These are instructions to the agent, not enforced guarantees. How well they hold depends on the model's instruction following.
+## Try the recall flow
+
+Build a task-scoped L2 brief:
+
+```bash
+python3 ~/cairn/scripts/cairn.py brief \
+  --project your-project \
+  --thread current-task \
+  --focus pricing \
+  --focus credits \
+  --limit 5 > /tmp/cairn-brief.json
+```
+
+Check it before reuse:
+
+```bash
+python3 ~/cairn/scripts/cairn.py brief-check \
+  --project your-project \
+  --thread current-task < /tmp/cairn-brief.json
+```
+
+The result is one of these behaviors:
+
+- `fresh + use_brief` — the projection still matches L3 and contains sufficient boundaries;
+- `fresh + read_source` — the projection is current, but the Agent must open original evidence;
+- `stale + rebuild` — a decision in the project changed, so the old projection must not be reused.
+
+Brief selection is deterministic literal matching over decision IDs, titles, conclusions, and scopes. It does not claim semantic completeness. An empty brief is not proof that no relevant decision exists.
+
+Open an exact L3 decision when you know its ID or need the full source:
+
+```bash
+python3 ~/cairn/scripts/cairn.py get \
+  --project your-project \
+  --id decision-id
+```
+
+## Durable decision contract
+
+L2 does not change decision input or durable output. A decision still requires explicit user intent and belongs to one project and scope.
+
+Decision files remain plain Markdown:
+
+```markdown
+---
+project: your-project
+decision: pricing-model
+status: valid
+decided_by: Pat
+decided_at: 2026-11-13
+---
+
+# Pricing model
+
+## Decision
+Use annual billing.
+
+## Rationale
+To be validated
+
+## Scope
+Paid plans.
+
+## Explicitly excluded
+Enterprise contracts.
+
+## Overturn signal
+Renewal data contradicts the assumption.
+```
+
+The lifecycle remains:
+
+- `create` — a new confirmed decision;
+- `supersede` — a confirmed replacement that preserves its predecessors;
+- `revoke` — a withdrawal without a replacement;
+- `correct` — repair of an inaccurate record without changing its lifecycle.
+
+Every successful write is validated, indexed, returned with revisions, and read back. A project decision change invalidates every existing brief for that project, including briefs that did not previously match the changed record.
 
 ## Install
 
-Requires Python 3.9 or newer; no third-party Python packages are needed.
-Clone this public repository, then run the installer with the agent you use.
-The installer creates a **separate private context repository** for your decisions.
-If you already have one, use [upgrade](#existing-installations), not install.
+Requirements: Python 3.9 or newer. Cairn uses only the Python standard library.
 
-For Claude Code:
+Clone this public source repository, then create a separate private decision repository.
 
-```bash
-bash install.sh --identity "Your Name" --project "your-project" --repository "$HOME/cairn" --claude-code
-```
-
-For Codex:
+Claude Code:
 
 ```bash
-bash install.sh --identity "Your Name" --project "your-project" --repository "$HOME/cairn" --codex
+bash install.sh \
+  --identity "Your Name" \
+  --project "your-project" \
+  --repository "$HOME/cairn" \
+  --claude-code
 ```
 
-For both, pass both flags. For any other agent, point at its skills directory:
+Codex:
 
 ```bash
-bash install.sh --identity "Your Name" --project "your-project" --repository "$HOME/cairn" --skills-dir "/path/to/skills"
+bash install.sh \
+  --identity "Your Name" \
+  --project "your-project" \
+  --repository "$HOME/cairn" \
+  --codex
 ```
 
-On Windows, run the Python installer directly (PowerShell):
-
-```powershell
-python install.py install --identity "Your Name" --project "your-project" --repository "$HOME/cairn" --codex
-```
-
-The Bash examples above work on macOS/Linux. Without a target flag, `install`
-installs to Codex, as earlier versions did. `upgrade` has a different default:
-it updates repository files only, unless Skill targets are explicitly selected.
+Pass both host flags to install both Skills. For another compatible Agent, use `--skills-dir "/path/to/skills"`.
 
 The installer:
 
 1. creates a local Cairn repository from `template/`;
-2. writes the configuration (by default `~/.cairn/config.json`);
-3. installs the Skill to each target. Codex also gets `agents/openai.yaml`.
+2. writes `~/.cairn/config.json`;
+3. installs the routed Skill and its references;
+4. creates the initial project index.
 
-It refuses to overwrite a non-empty repository, an existing Skill, or a configuration that points at another repository (pass `--replace-config` to replace it), and it checks every target before it writes anything.
-
-## Limitations
-
-- **Briefs use literal focus terms.** A brief ranks matches in IDs, titles, decisions and scopes without semantic search. The Agent can fall back to paginated `list` or the Markdown index, then open exact records. An empty brief does not establish that no decisions exist.
-- **No learning.** Corrections are appended to `protocol/benchmark/feedback.md`. Nothing reads that log to change later behavior.
-
-## Roadmap
-
-Not built yet, listed so you know what is missing:
-
-- A thin MCP adapter over the unified local access contract, when a host needs it.
-- A way to turn a repeated correction into a reviewed rule.
-
-## Find decisions faster: the index
-
-For each project the installer creates `projects/<project>/decisions-index.md`: one line per **valid** decision, newest first.
-
-```text
-- 2026-09-01 plain-markdown: Use plain Markdown — Decisions are stored as plain Markdown files.
-```
-
-Each line is `date id: title — first sentence of the decision`. The Skill can use this file as a navigation aid on older installations, then open `decisions/<id>.md` for the lines that matter to the task. Superseded and revoked decisions are not listed; they stay in `decisions/` as history.
-
-The file is generated. Do not edit it. After you record or change a decision, refresh it:
-
-```bash
-python3 ~/cairn/scripts/index.py
-```
-
-The Skill does this itself after it records a decision. `index.py --check` exits with 1 when the index is missing or out of date, and `validate.py` warns about a stale index. The script uses only the standard library.
-
-If an older installation has no `index.py`, [upgrade the repository scripts](#existing-installations),
-then run `index.py` once to create the index. Upgrade itself does not regenerate indexes.
-
-## Validate your decisions
-
-Decision files are plain Markdown with a small frontmatter block. Check them with:
-
-```bash
-python3 ~/cairn/scripts/validate.py
-```
-
-It reads only the standard library, so there is nothing to install. It reports an error when:
-
-- a required field is missing (`project`, `decision`, `status`, `decided_by`, `decided_at`), or `status` is not `valid`, `superseded`, or `revoked`;
-- `decided_at` is not a real date in `YYYY-MM-DD` form;
-- `project` or `decision` does not match where the file lives;
-- `supersedes` (one id, or a list when a decision replaces several) points to a decision that does not exist, to itself, or in a loop;
-- `superseded_by`, if you use it, points to a decision that does not exist;
-- the decision it replaces is still marked `valid`.
-
-It reports a warning, not an error, for:
-
-- a missing section. English headings (`Decision`, `Rationale`, `Scope`, `Explicitly excluded`, `Overturn signal`) and Chinese headings (`结论`, `为什么`, `适用范围`, `明确不做`, `推翻条件`) are both recognized, and a file is checked against the set it uses;
-- an unknown field, or an unusual id;
-- a `superseded` decision that nothing replaces;
-- one decision replaced by several (a split), or a `superseded_by` whose target does not list it in `supersedes`.
-
-Options: `--json` for machine-readable output, `--strict` to fail on warnings. The exit code is 0 when there are no errors, 1 when there are, and 2 when the repository cannot be read. The Skill runs it after recording a decision if the script is present.
-
-If an older installation has no validator, [upgrade the repository scripts](#existing-installations).
-
-To run this project's own tests: `python3 -m unittest discover -s tests`.
+It refuses to overwrite a non-empty repository, an existing Skill, or a configuration that points somewhere else.
 
 ## Existing installations
 
-**Your usual Agent workflow stays the same.** Decisions remain Markdown files;
-project layout, the Skill definition and the protocol text have not changed in
-this integration update. You do not need to rewrite decisions or reinstall Cairn.
-The JSON reader and installation status are additional entry points for programs.
-
-Updating this public source clone does **not** update scripts already copied into
-your private context repository, or Skills installed in an agent's directory.
-Upgrade is recommended for the latest reader fixes, consistent configuration
-lookup and validation. Continuing the existing Agent workflow does not require
-an immediate upgrade, but older readers do not provide the current export safeguards.
-
-Run the following from the **public `cairn-context` source clone**, on `main`:
+Updating this public checkout does not change an installed Skill or private repository. Inspect first:
 
 ```bash
-git pull --ff-only
 python3 install.py status --json
 python3 install.py upgrade --dry-run --json
+```
+
+Upgrade managed repository scripts only:
+
+```bash
 python3 install.py upgrade --json
 ```
 
-On Windows, use `python` in place of `python3`; `install.sh` is a POSIX wrapper.
-The commands use your configured private repository. To inspect or upgrade a
-different one, add `--repository "/path/to/private-cairn"` to the relevant command.
-Configuration lookup for the installer, reader, indexer and validator is
-`CAIRN_CONFIG` → `CAIRN_CONFIG_ROOT/config.json` → `~/.cairn/config.json`.
-
-- `status` reports `ready`, `not_enabled` or `error`, plus `upgrade_available`.
-  `ready` does not mean the scripts are current or every decision is valid;
-  inspect `upgrade_available`, `validation` and `stale_indexes` separately.
-- **Do not rely on the version number alone.** A repository may already have
-  `protocol/VERSION` set to `1` while its scripts predate fixes. Status compares
-  the managed file contents as well; dry run lists the actual updates.
-- With no target flags, upgrade writes only `scripts/index.py`,
-  `scripts/validate.py`, `scripts/read.py`, `scripts/cairn.py` and `protocol/VERSION`. It leaves
-  decisions, project files, indexes, configuration, protocol text and agent
-  instructions unchanged. It does not enable or change autosync.
-- **Keep customized Skills by omitting target flags.** Passing `--codex`,
-  `--claude-code`, `--skills-dir` or `--detect` can replace a differing installed
-  Skill with the public copy; it does not merge your customizations. It updates
-  only existing Skill directories. To refresh an uncustomized Codex Skill too,
-  preview `python3 install.py upgrade --codex --dry-run --json`, then remove
-  `--dry-run` to apply it.
-
-The validator now requires zero-padded dates such as `2026-01-01`. JSON exports
-report and omit decisions with invalid history links or cycles, and reject linked
-files/directories rather than reading their targets. Existing records are not
-rewritten to fix these issues. After upgrading, run the installed
-`scripts/validate.py` against your private repository and review any errors.
-
-## Use from another program
-
-To read decisions as JSON, for example from an app, use:
+Upgrade installed Skills too:
 
 ```bash
-python3 ~/cairn/scripts/read.py --project your-project --since 2026-10-01
+python3 install.py upgrade --codex --claude-code --json
 ```
 
-Generated paths are repository-relative; linked files and directories are rejected.
-`--project` plus `--since` exports one project's decisions from one date on.
-Authored content is preserved, so review any references in it before sharing. The input
-and output formats, the status states and the conformance cases that another
-implementation must pass are in [`docs/contract.md`](docs/contract.md).
+Upgrade preserves decisions, project files, protocol text, configuration, and synchronization settings. Passing a host flag replaces the installed Skill files with this public version, so review customized Skills before upgrading them.
 
-## Optional 30-minute Git sync
+## Safety and recovery
 
-The generated Cairn repository includes an optional macOS LaunchAgent. Every 30 minutes it commits local changes, rebases onto the remote branch, and pushes. A conflict stops the sync and keeps the local commit for you to resolve.
+- The repository is the only durable source of truth; L2 briefs are host-held projections.
+- Brief generation and checking are read-only and create no cache files in Cairn.
+- The writer checks expected revisions and serializes Cairn writers.
+- Interrupted writes retain a local transaction journal and can resume with the same request ID.
+- Recovery refuses to overwrite external edits that differ from both recorded states.
+- Generated paths are repository-relative; linked files and redirected directories are rejected.
+- Decision capture never authorizes Git push, public publication, or writes to source code and product documents.
 
-First create a **private** GitHub repository and push the generated Cairn repository:
+See [the unified access contract](references/access.md) for command arguments, JSON fields, refusal codes, truncation rules, and recovery behavior.
 
-```bash
-cd "$HOME/cairn"
-git init -b main
-git add .
-git commit -m "init: create Cairn context"
-gh repo create YOUR_ACCOUNT/cairn --private --source . --remote origin --push
-```
+## Optional Git synchronization
 
-Then enable autosync yourself:
+The generated private repository includes an optional macOS 30-minute sync script. The installer never enables it.
+
+Initialize and push the private repository yourself, then run:
 
 ```bash
 bash "$HOME/cairn/scripts/setup-autosync.sh"
 ```
 
-The Skill installer never enables autosync. When the GitHub CLI is available, setup refuses to sync to a repository that is public.
+The setup refuses a public GitHub remote when GitHub CLI can verify visibility. A sync conflict stops and preserves the local commit for manual resolution.
+
+## Boundaries
+
+Cairn is decision memory, not a general activity or preference store.
+
+It does not provide:
+
+- activity capture or screen history;
+- inferred user preferences;
+- embeddings or semantic ranking;
+- a hosted account or database;
+- a background Hot Context service;
+- automatic promotion from L2 into durable memory;
+- guaranteed semantic recall.
+
+L2 uses literal focus terms and bounded excerpts. The Agent remains responsible for relevance, project applicability, and deciding when original evidence is required.
 
 ## Repository layout
 
 ```text
-~/cairn/
+cairn-context/                 public source
+├── SKILL.md                   compact router and hard rules
+├── references/
+│   ├── recall.md
+│   ├── record.md
+│   ├── operations.md
+│   └── access.md
+├── install.py
+├── template/                  private repository template and Python kernel
+├── docs/schema/               published JSON contracts
+└── tests/                     unit and conformance cases
+
+~/cairn/                       generated private decision repository
 ├── AGENTS.md
-├── CLAUDE.md              imports AGENTS.md
+├── projects/<project>/
+│   ├── decisions/*.md
+│   ├── decisions-index.md
+│   └── state.md
 ├── protocol/
-│   ├── README.md
-│   ├── VERSION
-│   └── benchmark/
-│       ├── feedback.md
-│       └── cases.yaml
-├── scripts/
-│   ├── setup-autosync.sh
-│   ├── sync.sh
-│   ├── validate.py
-│   ├── index.py
-│   └── read.py
-└── projects/
-    └── your-project/
-        ├── README.md
-        ├── state.md
-        ├── decisions-index.md   generated
-        └── decisions/
+└── scripts/
 ```
 
-## Related projects
+## Connect an Agent
 
-Two earlier projects are archived and no longer maintained: [Cairn Lite](https://github.com/alexliu072903-bit/cairn-lite), which kept the context inside the project folder, and [Shared Project Context](https://github.com/alexliu072903-bit/shared-project-context), which tracked goals and evidence across people and agents.
+For an existing installation or a new local Agent, use [the connection procedure](docs/connect.md). It checks configuration and capabilities before changing anything, reuses an existing private repository, and returns to the original task after verification.
 
-## Privacy boundary
+## Development
 
-Do not point several people at one personal Cairn repository just to share the Skill. Share this public Skill and keep each person's context repository private. Create a separate team repository only for decisions that are meant to be read by the team.
+```bash
+python3 -m unittest discover -s tests
+```
+
+The suite covers installation, upgrade, validation, pagination, exact reads, brief freshness, writer lifecycle, recovery, path isolation, and published JSON schemas across Python 3.9 and 3.12.
 
 ## License
 

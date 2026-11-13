@@ -1,43 +1,85 @@
 {
-  "slug": "cairn-context-mechanism",
-  "layout": "recall-layers",
-  "title": { "zh": "Cairn 如何找回项目决定", "en": "How Cairn recalls a decision" },
-  "subtitle": { "zh": "普通召回：先用现有 Context，再找候选，最后查原文。", "en": "Ordinary recall moves from current context to candidates to source." },
-  "layers": [
-    {
-      "id": "l1",
-      "owner": { "zh": "L1 · 宿主", "en": "L1 · HOST" },
-      "title": { "zh": "当前 Context", "en": "Current context" },
-      "lines": [
-        { "zh": "已在当前任务中的信息", "en": "Information already in the task." },
-        { "zh": "足够时，直接继续", "en": "Continue when it is sufficient." }
-      ]
+  "slug": "cairn-context-mechanism-v2",
+  "layout": "control-and-data-planes",
+  "colors": {
+    "accent": "#7c4df2",
+    "accentSoft": "#eee8ff",
+    "success": "#12856a",
+    "ink": "#201c2c"
+  },
+  "control_plane": {
+    "title": {
+      "en": "Skill control plane",
+      "zh": "Skill 控制层"
     },
-    {
-      "id": "l2",
-      "owner": { "zh": "L2 · 宿主", "en": "L2 · HOST" },
-      "title": { "zh": "线程简报", "en": "Thread brief" },
-      "lines": [
-        { "zh": "按项目和线程保留短期候选", "en": "Short-lived project/thread candidates." },
-        { "zh": "按字面匹配，复用前检查快照", "en": "Match literal terms; check before reuse." }
-      ]
+    "before": {
+      "en": "One SKILL.md loaded recall, recording, correction, recovery, synchronization, and legacy guidance together.",
+      "zh": "一个 SKILL.md 同时加载召回、记录、纠正、恢复、同步和旧版兼容。"
     },
-    {
-      "id": "l3",
-      "owner": { "zh": "L3 · CAIRN", "en": "L3 · CAIRN" },
-      "title": { "zh": "决定仓库", "en": "Decision repository" },
-      "lines": [
-        { "zh": "唯一事实来源，保留决定原文和历史", "en": "Source of truth for decisions and history." },
-        { "zh": "按 ID 查原文，按协议变更决定", "en": "Read by ID; change through the Protocol." }
+    "router": {
+      "always_loaded": [
+        "product-boundary",
+        "hard-rules",
+        "configuration",
+        "task-routing"
+      ],
+      "modules": [
+        "recall.md",
+        "record.md",
+        "operations.md",
+        "access.md"
       ]
     }
-  ],
-  "miss": { "zh": "信息不足", "en": "Context missing" },
-  "fallback": [
-    { "zh": "候选不足", "en": "Candidates missing" },
-    { "zh": "或读取不完整", "en": "or read incomplete" }
-  ],
-  "bypass": { "zh": "已知 ID、决定变更或高影响核对：直接查 L3", "en": "Known ID, lifecycle change, or high-impact check: go directly to L3" },
-  "invalidation": { "zh": "项目决定变化 → 丢弃旧简报，按需重建", "en": "Project decisions change → discard the old brief and rebuild as needed" },
-  "caption": { "zh": "机制示意 · Cairn 不保存简报", "en": "Mechanism diagram · Cairn does not store the brief" }
+  },
+  "data_plane": {
+    "title": {
+      "en": "Context data plane",
+      "zh": "Context 数据层"
+    },
+    "layers": [
+      {
+        "id": "l1",
+        "title": {
+          "en": "Current Context",
+          "zh": "当前 Context"
+        },
+        "owner": "host-agent",
+        "role": "current-task-and-loaded-evidence"
+      },
+      {
+        "id": "l2",
+        "title": {
+          "en": "Hot Context brief",
+          "zh": "Hot Context brief"
+        },
+        "owner": "host-agent",
+        "role": "temporary-verifiable-decision-candidates",
+        "commands": [
+          "brief",
+          "brief-check"
+        ]
+      },
+      {
+        "id": "l3",
+        "title": {
+          "en": "Long-term decisions",
+          "zh": "长期决定"
+        },
+        "owner": "cairn-repository",
+        "role": "sole-durable-source-of-truth"
+      }
+    ]
+  },
+  "principles": {
+    "en": [
+      "The Agent judges relevance.",
+      "L2 is temporary and verifiable.",
+      "L3 preserves durable truth."
+    ],
+    "zh": [
+      "Agent 判断相关性。",
+      "L2 临时且可校验。",
+      "L3 保存长期事实。"
+    ]
+  }
 }

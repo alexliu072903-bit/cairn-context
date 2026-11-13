@@ -192,7 +192,13 @@ def fill_placeholders(path, replacements):
 
 
 def skill_files(target):
-    common = ("SKILL.md", "references/access.md")
+    common = (
+        "SKILL.md",
+        "references/access.md",
+        "references/recall.md",
+        "references/record.md",
+        "references/operations.md",
+    )
     return common + ("agents/openai.yaml",) if target["kind"] == "codex" else common
 
 

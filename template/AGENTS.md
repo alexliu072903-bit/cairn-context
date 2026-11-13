@@ -6,8 +6,9 @@ This repository stores durable project context for agents.
 
 1. Read `projects/<project>/README.md`.
 2. Read `projects/<project>/state.md`.
-3. Read only relevant decisions with `status: valid`.
-4. Follow `protocol/README.md` before recording or changing a decision.
+3. Use adequate current host Context (L1). If it is insufficient, use a fresh short-lived project/thread brief (L2) for ordinary recall. The host owns the brief and Cairn stores no copy.
+4. This repository (L3) is the only source of truth. Use `scripts/cairn.py list`/`get` when the brief is insufficient or incomplete. Use exact `get` directly for known IDs, conflicts, high-impact verification, corrections, revocations or replacements.
+5. Follow `protocol/README.md` before recording or changing a decision. Read back the source and discard the affected project's old briefs after a successful write.
 
 ## Boundaries
 

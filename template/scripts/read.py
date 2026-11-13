@@ -132,7 +132,7 @@ def diagnostic_message(item):
     return message
 
 
-def read_decision(validate, root, project_id, path, report, include_revisions=False):
+def read_decision(validate, root, project_id, path, report, include_revisions=False, *, fallback_title=True):
     """Return the decision record for one file, or None when it cannot be trusted."""
     first_problem = len(report.items)
     before = path.read_bytes() if include_revisions else None
@@ -155,7 +155,7 @@ def read_decision(validate, root, project_id, path, report, include_revisions=Fa
     record = {
         "id": path.stem,
         "project": project_id,
-        "title": title or path.stem,
+        "title": title or (path.stem if fallback_title else ""),
         "status": fields["status"],
         "decided_by": fields["decided_by"],
         "decided_at": fields["decided_at"],
@@ -187,7 +187,8 @@ def directory_revision(directory, root):
     return tuple(result)
 
 
-def read_repository(validate, root, projects=None, since=None, statuses=None, include_revisions=False):
+def read_repository(validate, root, projects=None, since=None, statuses=None, include_revisions=False,
+                    *, fallback_title=True):
     """Return (result dict, missing project ids). Raises FileNotFoundError without projects/."""
     root = root.resolve()
     projects_dir = root / "projects"
@@ -220,7 +221,8 @@ def read_repository(validate, root, projects=None, since=None, statuses=None, in
                 if not safe_path(path, root):
                     report.error(path, "linked decision file is not exported")
                     continue
-                record, parsed = read_decision(validate, root, name, path, report, include_revisions)
+                record, parsed = read_decision(validate, root, name, path, report, include_revisions,
+                                               fallback_title=fallback_title)
                 if parsed is not None:
                     history.append(parsed)
                 if record is not None:

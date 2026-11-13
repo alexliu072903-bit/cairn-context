@@ -2,257 +2,262 @@
 
 **[English](README.md) | 中文**
 
-一个 Skill：让新开的 Agent session 找回与当前任务相关、已经确认过的项目决定，你不用再重复解释。
+让决策跟随工作，而不是困在某一个 Agent 里。
 
-支持 Claude Code、Codex，以及任何能加载 `SKILL.md` 的 Agent。你的决定保存在你自己拥有的仓库里，这个公开仓库只包含 Skill、安装器和模板。
+Cairn 把已经确认的项目决定保存在你拥有的仓库中，并在正确的任务时刻，把正确的决定带入当前 Context。支持 Claude Code、Codex，以及能够加载 `SKILL.md`、读取本地文件和运行 Python 的其他 Agent。
 
-![Cairn 的三层召回：宿主当前 Context、线程简报和决定仓库](docs/assets/mechanism.zh.svg)
+![Cairn Context 架构：路由式 Skill 与三层召回](docs/assets/mechanism.zh.svg)
 
-*机制说明图。当前任务可以复用线程简报，决定仓库仍是唯一事实来源。[双语源文件](docs/mechanism.json)。*
+*Agent 判断相关性。L2 临时且可校验。L3 保存长期事实。*
 
-## 统一读写与 Agent 接入
+## 这次形成的结构
 
-可以把[接入说明](docs/connect.md)交给 Agent，沿用现有私有仓库和自定义 Skill。
-安装后的 `scripts/cairn.py` 提供 `brief` / `brief-check`、项目发现、状态检查、
-分页目录、按 ID 读取、统一写入、恢复与索引刷新，均通过本地 JSON 接口使用。
+Cairn 由两个相互配合的平面组成。
 
-普通召回先用宿主当前 Context（L1）。当前信息不足时，使用宿主短期持有的
-项目／线程候选简报（L2）；简报不够再读决定仓库（L3）。L3 是唯一事实来源。
-已知 ID、纠正／撤回／替代和高影响核对直接读 L3。项目里任一决定变化，旧简报
-都会因快照变化而失效，包括没有命中关键词的决定。
+### Skill 控制层
 
-决定字段、状态、历史规则及旧 `read.py` 导出保持不变。
-[接口契约](references/access.md)包含命令示例、版本检查、读取诊断与中断恢复步骤。
+`SKILL.md` 保持紧凑，只保留产品边界、六条 Hard rules、配置解析和任务路由。Agent 只在当前任务需要时加载一份具体合同：
 
-升级时不带宿主参数，可保留已有自定义 Skill；需要采用新入口时合并工作流，
-不要直接覆盖定制规则。写入锁协调 Cairn 自身，不协调任意编辑器或 Git；
-写入或待恢复期间应暂停旧版自动同步。更新源码不会自动更新个人安装或启用同步。
+- `references/recall.md`：寻找决定并判断 Context 是否完整；
+- `references/record.md`：创建、替代、撤销或纠正决定；
+- `references/operations.md`：恢复中断写入并处理同步；
+- `references/access.md`：精确的 CLI 与 JSON 合同。
 
-## 它做什么
+### Context 数据层
 
-- 为当前任务挑出少量候选决定；需要更多依据时，Agent 按 ID 读取原文。
-- 区分已经确认的决定、暂时的倾向、开放的问题和临时实验。信号不清楚时，只问一次。
-- 决定变化时保留历史：旧文件不删，新文件用 `supersedes` 指向它。
-- 记录你的纠正，错误的判断可以追溯。
+Cairn 使用三层 Context，同时保持“什么是长期决定”不变：
 
-这些是给 Agent 的指令，不是强制保证。效果取决于模型遵循指令的能力。
+1. **L1 · 当前 Context**：宿主 Agent 当前的任务、用户输入和已经读入的证据。
+2. **L2 · Hot Context brief**：由宿主短期持有、限定在一个项目和工作线程内的候选决定。
+3. **L3 · 长期决定**：唯一事实来源，保存原始记录、历史链、纠正和 revision。
+
+L1 已有足够依据时，Agent 直接继续。缺少决定时，先检查 L2；L2 不完整、过期、被截断、存在冲突或不足以支撑判断时，再读取准确的 L3 原始记录。已知决定 ID、纠正、撤销、替代和高影响核对直接进入 L3。
+
+## 它能做什么
+
+- 让确认的决定跨 Agent、跨会话持续存在。
+- 为一个项目和工作线程返回有界的候选 brief。
+- 在复用前，根据当前项目 snapshot 校验 brief 是否仍然有效。
+- 在 L3 保留决定原文、scope、exclusions、推翻条件、来源和 revision。
+- 决定变化时保留旧记录和替代关系。
+- 记录纠正，而不偷偷改写历史。
+- 对不完整、冲突、过期或不安全的操作返回结构化诊断。
+
+## 体验三层召回
+
+生成一个任务级 L2 brief：
+
+```bash
+python3 ~/cairn/scripts/cairn.py brief \
+  --project your-project \
+  --thread current-task \
+  --focus pricing \
+  --focus credits \
+  --limit 5 > /tmp/cairn-brief.json
+```
+
+再次使用前检查它：
+
+```bash
+python3 ~/cairn/scripts/cairn.py brief-check \
+  --project your-project \
+  --thread current-task < /tmp/cairn-brief.json
+```
+
+系统会给出三种行为：
+
+- `fresh + use_brief`：候选与 L3 一致，决定边界完整，可以使用；
+- `fresh + read_source`：候选仍然新鲜，但必须打开原始证据；
+- `stale + rebuild`：项目决定已经变化，旧候选不能继续使用。
+
+Brief 对决定 ID、标题、结论和 scope 做确定性的字面匹配，不承诺语义召回完整。没有候选不代表不存在相关决定。
+
+已知决定 ID 或需要完整依据时，直接读取 L3：
+
+```bash
+python3 ~/cairn/scripts/cairn.py get \
+  --project your-project \
+  --id decision-id
+```
+
+## 长期决定合同
+
+L2 不改变决定的 input 和 durable output。决定仍然必须来自用户明确意图，并属于一个项目和适用范围。
+
+决定继续使用普通 Markdown：
+
+```markdown
+---
+project: your-project
+decision: pricing-model
+status: valid
+decided_by: Alex
+decided_at: 2026-11-13
+---
+
+# 定价模型
+
+## 结论
+使用年付模式。
+
+## 为什么
+待验证
+
+## 适用范围
+付费方案。
+
+## 明确不做
+企业合同。
+
+## 推翻条件
+真实续费数据否定当前假设。
+```
+
+决定生命周期保持不变：
+
+- `create`：新增一条已经确认的决定；
+- `supersede`：使用新决定替代旧决定并保留历史；
+- `revoke`：撤销一条决定但不提供替代；
+- `correct`：纠正错误记录，同时保持原生命周期。
+
+每次成功写入都会完成校验、索引刷新、revision 返回和读回检查。项目中任一决定变化都会让该项目已有的 brief 失效，包括之前没有匹配到的决定。
 
 ## 安装
 
-需要 Python 3.9 或更新版本，不需要第三方 Python 包。
-克隆这个公开仓库，再用你使用的 Agent 对应的参数运行安装器。
-安装器会另建一个**私有 Context 仓库**保存你的决定。
-如果已经安装，请使用[升级](#已有安装升级)，不要重新安装。
+要求 Python 3.9 或更高版本。Cairn 只使用 Python 标准库。
+
+先克隆这个公开源码仓库，再创建一个独立的私人决定仓库。
 
 Claude Code：
 
 ```bash
-bash install.sh --identity "你的名字" --project "your-project" --repository "$HOME/cairn" --claude-code
+bash install.sh \
+  --identity "你的名字" \
+  --project "your-project" \
+  --repository "$HOME/cairn" \
+  --claude-code
 ```
 
 Codex：
 
 ```bash
-bash install.sh --identity "你的名字" --project "your-project" --repository "$HOME/cairn" --codex
+bash install.sh \
+  --identity "你的名字" \
+  --project "your-project" \
+  --repository "$HOME/cairn" \
+  --codex
 ```
 
-两个都装，就同时传两个参数。其他 Agent 请指向它的 skills 目录：
-
-```bash
-bash install.sh --identity "你的名字" --project "your-project" --repository "$HOME/cairn" --skills-dir "/path/to/skills"
-```
-
-Windows 请直接运行 Python 安装器（PowerShell）：
-
-```powershell
-python install.py install --identity "你的名字" --project "your-project" --repository "$HOME/cairn" --codex
-```
-
-上面的 Bash 示例适用于 macOS/Linux。`install` 不传目标参数时，和早期版本一样安装到 Codex。
-`upgrade` 的默认行为不同：不指定 Skill 目标时，只升级仓库文件。
+同时传入两个宿主参数可安装两份 Skill。其他兼容 Agent 使用 `--skills-dir "/path/to/skills"`。
 
 安装器会：
 
-1. 用 `template/` 创建本地的 Cairn 仓库；
-2. 写入配置（默认是 `~/.cairn/config.json`）；
-3. 把 Skill 安装到每个目标，Codex 目标还会安装 `agents/openai.yaml`。
+1. 根据 `template/` 创建本地 Cairn 仓库；
+2. 写入 `~/.cairn/config.json`；
+3. 安装路由式 Skill 和相关 references；
+4. 创建初始项目索引。
 
-它不会覆盖非空仓库、已有的 Skill，或指向另一个仓库的配置（需要替换时传 `--replace-config`），并且在写入任何文件之前，会先检查所有目标。
-
-## 限制
-
-- **简报只做字面匹配。** 用任务词匹配 ID、标题、决定与范围，无语义检索。结果不够时，可浏览分页目录或 Markdown 索引，再按 ID 打开决定。没有匹配不代表没有相关决定。
-- **不会学习。** 纠正会追加到 `protocol/benchmark/feedback.md`，但没有任何东西读取它来改变之后的行为。
-
-## 路线图
-
-以下尚未实现，列出来是为了让你知道缺什么：
-
-- 在宿主需要时，为统一的本地读写契约增加一层 MCP 适配。
-- 把重复出现的纠正，整理成经过审核的规则。
-
-## 更快地找到决定：索引
-
-安装器会为每个项目创建 `projects/<project>/decisions-index.md`：每条**有效**的决定一行，按日期从新到旧。
-
-```text
-- 2026-09-01 plain-markdown: 使用普通 Markdown — 决定保存为普通 Markdown 文件。
-```
-
-每一行的格式是 `日期 编号: 标题 — 决定的第一句话`。旧安装可以用这个文件导航，再为和任务有关的行打开 `decisions/<编号>.md`。已被替代或撤销的决定不会列出，它们仍留在 `decisions/` 里作为历史。
-
-这个文件是自动生成的，不要手动编辑。你记录或修改决定之后，刷新它：
-
-```bash
-python3 ~/cairn/scripts/index.py
-```
-
-Skill 在记录决定之后会自己刷新。`index.py --check` 在索引缺失或过期时返回 1，`validate.py` 也会对过期的索引给出警告。脚本只用 Python 标准库。
-
-如果早期安装缺少 `index.py`，先[升级仓库脚本](#已有安装升级)，
-再运行一次 `index.py` 创建索引。升级本身不会重新生成索引。
-
-## 校验你的决定
-
-决定文件是普通 Markdown，带一小段 frontmatter。用下面的命令检查：
-
-```bash
-python3 ~/cairn/scripts/validate.py
-```
-
-它只用 Python 标准库，不需要安装任何东西。出现下面这些情况会报**错误**：
-
-- 缺少必填字段（`project`、`decision`、`status`、`decided_by`、`decided_at`），或者 `status` 不是 `valid`、`superseded`、`revoked` 之一；
-- `decided_at` 不是真实存在的 `YYYY-MM-DD` 日期；
-- `project` 或 `decision` 和文件所在位置不一致；
-- `supersedes`（一个编号，或者一条决定替代多条时写成列表）指向不存在的决定、指向自己，或者形成环；
-- 如果你用了 `superseded_by`，它指向不存在的决定；
-- 被替代的决定仍然标着 `valid`。
-
-下面这些只报**警告**，不算错误：
-
-- 缺少章节。英文标题（`Decision`、`Rationale`、`Scope`、`Explicitly excluded`、`Overturn signal`）和中文标题（`结论`、`为什么`、`适用范围`、`明确不做`、`推翻条件`）都能识别，每个文件按它实际使用的那一套检查；
-- 出现未知字段，或者编号格式不常见；
-- 标为 `superseded` 却没有任何决定替代它；
-- 一条决定被多条替代（拆分），或者 `superseded_by` 指向的决定没有在 `supersedes` 里列出它。
-
-选项：`--json` 输出机器可读结果，`--strict` 让警告也算失败。没有错误时退出码为 0，有错误为 1，仓库读不了为 2。如果脚本存在，Skill 在记录决定之后会自动运行它。
-
-如果早期安装缺少校验脚本，请先[升级仓库脚本](#已有安装升级)。
-
-运行本项目自己的测试：`python3 -m unittest discover -s tests`。
+它会拒绝覆盖非空仓库、已经存在的 Skill，或指向其他仓库的配置。
 
 ## 已有安装升级
 
-**你平时使用 Agent 的方式基本不变。** 决定仍是 Markdown 文件；本次接入更新没有改变
-项目结构、Skill 定义或协议正文。无需重写决定，也无需重新安装 Cairn。
-JSON 读取器和安装状态检查，是给其他程序新增的入口。
-
-更新这个公开源码仓库，**不会**自动更新已经复制到私有 Context 仓库的脚本，
-也不会更新 Agent 目录里的 Skill。建议升级，以获得读取器修复、统一配置查找和校验规则。
-继续原有 Agent 工作流不需要立即升级，但旧读取器不具备当前版本的导出保护。
-
-在**公开的 `cairn-context` 源码仓库**中、`main` 分支上执行：
+更新公开源码仓库不会自动修改已经安装的 Skill 或私人仓库。先检查：
 
 ```bash
-git pull --ff-only
 python3 install.py status --json
 python3 install.py upgrade --dry-run --json
+```
+
+只更新私人仓库中的托管脚本：
+
+```bash
 python3 install.py upgrade --json
 ```
 
-Windows 把 `python3` 换成 `python`；`install.sh` 是 POSIX 封装。
-这些命令使用配置中的私有仓库。要检查或升级另一个仓库，在对应命令后添加
-`--repository "/path/to/private-cairn"`。
-安装器、读取器、索引器和校验器统一按以下顺序查找配置：
-`CAIRN_CONFIG` → `CAIRN_CONFIG_ROOT/config.json` → `~/.cairn/config.json`。
-
-- `status` 会报告 `ready`、`not_enabled` 或 `error`，以及 `upgrade_available`。
-  `ready` 不代表脚本是最新的，也不代表所有决定都有效；还要分别查看
-  `upgrade_available`、`validation` 和 `stale_indexes`。
-- **不能只看版本号。** 即使 `protocol/VERSION` 已经是 `1`，脚本仍可能缺少后续修复。
-  状态检查也会比较受管理文件的内容，dry run 则会列出实际需要更新的文件。
-- 不加目标参数时，升级只写 `scripts/index.py`、`scripts/validate.py`、
-  `scripts/read.py`、`scripts/cairn.py` 和 `protocol/VERSION`。决定、项目文件、索引、配置、协议正文和
-  Agent 指令都不修改，也不会启用或改变自动同步。
-- **有定制 Skill 时，先不要加目标参数。** 加上 `--codex`、`--claude-code`、
-  `--skills-dir` 或 `--detect`，可能会把有差异的已安装 Skill 替换成公开版本，
-  不会合并你的定制。只更新已经存在的 Skill 目录。
-  如果也要更新未定制的 Codex Skill，先运行
-  `python3 install.py upgrade --codex --dry-run --json`，确认后去掉 `--dry-run` 执行。
-
-校验器现在要求日期补零，例如 `2026-01-01`。JSON 导出会报告并排除历史引用无效或形成环的决定，
-也会拒绝链接文件或链接目录，而不读取链接目标。升级不会自动重写已有记录来修复这些问题。
-升级后，在私有仓库上运行已安装的 `scripts/validate.py`，查看是否有错误需要处理。
-
-## 从其他程序使用
-
-需要把决定读成 JSON（例如从某个应用中读取）时：
+同时更新已安装 Skill：
 
 ```bash
-python3 ~/cairn/scripts/read.py --project your-project --since 2026-10-01
+python3 install.py upgrade --codex --claude-code --json
 ```
 
-工具生成的路径均相对仓库；不会跟随链接文件或链接目录。
-`--project` 加 `--since` 可以只导出某个项目、某天之后的决定。
-用户写入的内容原样保留，分享前仍需检查其中的引用。输入输出格式、状态含义，以及其他实现必须通过的一致性用例，
-见 [`docs/contract.md`](docs/contract.md)。
+升级不会修改决定、项目文件、Protocol 正文、配置和同步设置。传入宿主参数会用公开版本替换该宿主中的 Skill 文件，因此定制过的 Skill 应先检查差异。
 
-## 可选：每 30 分钟的 Git 同步
+## 安全与恢复
 
-生成的 Cairn 仓库包含一个可选的 macOS LaunchAgent。它每 30 分钟提交本地改动、变基到远端分支并推送。遇到冲突会停止同步，并保留本地提交，等你自己处理。
+- L3 仓库是唯一长期事实来源；L2 brief 是宿主持有的临时投影。
+- 生成和检查 brief 都是只读操作，不在 Cairn 中创建缓存文件。
+- Writer 检查 expected revision，并串行协调 Cairn writers。
+- 中断的写入保留本地 transaction journal，可使用同一个 request ID 恢复。
+- 外部文件变化与事务记录不一致时，恢复过程拒绝覆盖。
+- 生成路径使用仓库相对路径；符号链接和被重定向的目录会被拒绝。
+- 记录决定不会自动授权 Git push、公开发布或修改源码与产品文档。
 
-先创建一个**私有**的 GitHub 仓库，并把生成的 Cairn 仓库推上去：
+命令参数、JSON 字段、拒绝码、截断和恢复行为见[统一访问合同](references/access.md)。
 
-```bash
-cd "$HOME/cairn"
-git init -b main
-git add .
-git commit -m "init: create Cairn context"
-gh repo create YOUR_ACCOUNT/cairn --private --source . --remote origin --push
-```
+## 可选 Git 同步
 
-然后由你自己启用自动同步：
+生成的私人仓库包含一个可选的 macOS 30 分钟同步脚本，安装器不会自动启用。
+
+自行初始化并推送私人仓库后运行：
 
 ```bash
 bash "$HOME/cairn/scripts/setup-autosync.sh"
 ```
 
-Skill 安装器不会启用自动同步。GitHub CLI 可用时，如果目标仓库是公开的，设置会拒绝同步。
+如果 GitHub CLI 可以检查仓库可见性，安装器会拒绝将 Context 同步到公开仓库。出现冲突时，同步会停止并保留本地提交，等待手动处理。
+
+## 产品边界
+
+Cairn 是决策记忆，不是通用活动或偏好 Memory。
+
+它不提供：
+
+- 活动采集或屏幕历史；
+- 自动推断的用户偏好；
+- embedding 或语义排序；
+- 托管账户和数据库；
+- 后台运行的 Hot Context 服务；
+- 自动把 L2 提升为长期记忆；
+- 对语义召回完整性的保证。
+
+L2 采用字面 focus 匹配和有界摘录。Agent 仍然负责判断相关性、项目归属，以及何时必须读取原始证据。
 
 ## 仓库结构
 
 ```text
-~/cairn/
+cairn-context/                 公开源码
+├── SKILL.md                   紧凑 Router 与 Hard rules
+├── references/
+│   ├── recall.md
+│   ├── record.md
+│   ├── operations.md
+│   └── access.md
+├── install.py
+├── template/                  私人仓库模板和 Python kernel
+├── docs/schema/               公开 JSON 合同
+└── tests/                     单元与 conformance cases
+
+~/cairn/                       生成的私人决定仓库
 ├── AGENTS.md
-├── CLAUDE.md              引入 AGENTS.md
+├── projects/<project>/
+│   ├── decisions/*.md
+│   ├── decisions-index.md
+│   └── state.md
 ├── protocol/
-│   ├── README.md
-│   ├── VERSION
-│   └── benchmark/
-│       ├── feedback.md
-│       └── cases.yaml
-├── scripts/
-│   ├── setup-autosync.sh
-│   ├── sync.sh
-│   ├── validate.py
-│   ├── index.py
-│   └── read.py
-└── projects/
-    └── your-project/
-        ├── README.md
-        ├── state.md
-        ├── decisions-index.md   自动生成
-        └── decisions/
+└── scripts/
 ```
 
-## 相关项目
+## 连接 Agent
 
-两个更早的项目已归档，不再维护：[Cairn Lite](https://github.com/alexliu072903-bit/cairn-lite) 把上下文放在项目目录内部；[Shared Project Context](https://github.com/alexliu072903-bit/shared-project-context) 跟踪多个人和 Agent 的目标与证据。
+已有安装或新的本地 Agent 可以使用[接入流程](docs/connect.md)。它会先检查配置和能力，复用已有私人仓库，并在验证后返回原任务。
 
-## 隐私边界
+## 开发与测试
 
-不要为了共享 Skill，就让多个人使用同一个个人 Cairn 仓库。共享这个公开的 Skill，各自的上下文仓库保持私有。只有确实要让团队阅读的决定，才单独建一个团队仓库。
+```bash
+python3 -m unittest discover -s tests
+```
+
+测试覆盖安装、升级、校验、分页、准确读取、brief freshness、写入生命周期、恢复、路径隔离和公开 JSON Schema，并在 Python 3.9 与 3.12 上运行。
 
 ## License
 

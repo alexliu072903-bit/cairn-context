@@ -5,7 +5,9 @@ description: Connect current Agent work to repository-backed project memory. Use
 
 # Cairn Context
 
-Cairn is repository-backed decision memory. The repository owns durable data and history; this Skill decides when to retrieve, record, revise or recover it.
+Cairn uses three layers. L1 is the host's current Context. L2 is a short-lived candidate brief owned by the host and scoped to one project and thread. L3 is the decision repository, the sole source of truth and owner of durable history. This Skill routes between them.
+
+For ordinary recall, use L2 when L1 lacks context; go to L3 if candidates are insufficient or incomplete. Go directly to L3 for known IDs, corrections, revocations, replacements, or high-impact verification. Only use a brief while it still matches its L3 source and the current focus.
 
 ## Hard rules
 

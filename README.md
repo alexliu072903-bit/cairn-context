@@ -6,21 +6,28 @@ A Skill that lets a new agent session find the project decisions that are alread
 
 It works with Claude Code, Codex, and any agent that loads a `SKILL.md`. Your decisions live in a repository you own; this public repository holds only the Skill, an installer, and a template.
 
-![Cairn Context mechanism: decisions are filtered into task context, and corrections return as revisions](docs/assets/mechanism.en.svg)
+![Cairn recall layers: current host context, thread brief, and the decision repository](docs/assets/mechanism.en.svg)
 
-*Mechanism diagram, not a product screenshot. Confirmed decisions are filtered into compact task context; user corrections return to revision history. The bilingual source is [`docs/mechanism.json`](docs/mechanism.json).*
+*Mechanism diagram. A task can reuse a thread brief; the repository remains authoritative. [Bilingual source](docs/mechanism.json).*
 
 ## Unified access and Agent connection
 
 Give an Agent the [connection instructions](docs/connect.md). Existing installations
 can reuse their private repository and customized Skill. The installed
-`scripts/cairn.py` provides `projects`, `status`, paginated `list`, exact `get`,
-validated `write`, `recover` and `reindex` through one local JSON interface.
+`scripts/cairn.py` provides `brief`/`brief-check`, `projects`, `status`,
+paginated `list`, exact `get`, validated `write`, `recover` and `reindex` through
+one local JSON interface.
 
-Decision fields, statuses and history rules are unchanged. Navigation uses
-project/path/id and explicit filters, not embeddings or ranked candidates.
-The old `read.py` export remains compatible. See the [access contract](references/access.md)
-for request examples, revision checks, partial-read diagnostics and recovery.
+For ordinary recall, the Agent uses current host Context (L1), then a short-lived,
+host-owned project/thread brief (L2). If the candidates are insufficient, it
+opens the repository (L3), the sole source of truth. Known IDs, high-impact
+checks and corrections, revocations or replacements go directly to L3. A
+change to any decision in the project invalidates the old brief, even if
+the decision did not match its focus.
+
+Decision fields, statuses, history rules and the legacy `read.py` export are
+unchanged. See the [access contract](references/access.md) for examples,
+revision checks, partial-read diagnostics and recovery.
 
 Upgrade without host flags preserves customized Skills; merge the new access
 workflow into a customized Skill deliberately rather than replacing it.
@@ -30,7 +37,7 @@ configuration is changed simply by updating this source checkout.
 
 ## What it does
 
-- Reads only the decisions that bear on the current task. The agent picks them by file name and title (see Limitations).
+- Brings a small set of decision candidates into the current task. The Agent opens original records when more evidence is needed.
 - Tells a confirmed decision apart from an inclination, an open question, and a temporary experiment. If the signal is unclear, it asks once.
 - Keeps history when a decision changes. The old file stays, and a `supersedes` link points from the new one to it.
 - Logs your corrections, so a wrong judgment can be traced.
@@ -82,7 +89,7 @@ It refuses to overwrite a non-empty repository, an existing Skill, or a configur
 
 ## Limitations
 
-- **Retrieval is by index, not search.** The agent navigates paginated titles/scopes (or the generated Markdown index) and chooses exact decisions to open. There is no keyword search, embedding, or ranking, and the agent's choice is a judgment, not a guarantee.
+- **Briefs use literal focus terms.** A brief ranks matches in IDs, titles, decisions and scopes without semantic search. The Agent can fall back to paginated `list` or the Markdown index, then open exact records. An empty brief does not establish that no decisions exist.
 - **No learning.** Corrections are appended to `protocol/benchmark/feedback.md`. Nothing reads that log to change later behavior.
 
 ## Roadmap
@@ -100,7 +107,7 @@ For each project the installer creates `projects/<project>/decisions-index.md`: 
 - 2026-09-01 plain-markdown: Use plain Markdown — Decisions are stored as plain Markdown files.
 ```
 
-Each line is `date id: title — first sentence of the decision`. The Skill reads this file first, then opens `decisions/<id>.md` only for the lines that matter to the task. Superseded and revoked decisions are not listed; they stay in `decisions/` as history.
+Each line is `date id: title — first sentence of the decision`. The Skill can use this file as a navigation aid on older installations, then open `decisions/<id>.md` for the lines that matter to the task. Superseded and revoked decisions are not listed; they stay in `decisions/` as history.
 
 The file is generated. Do not edit it. After you record or change a decision, refresh it:
 

@@ -19,10 +19,18 @@ def load(name):
     return module
 
 
+# An installed CLI must not write import caches into the decision repository.
+if __name__ == '__main__':
+    sys.dont_write_bytecode = True
+
+
 reader = load('read')
 validator = reader.load_validate()
 indexer = load('index')
 ID = re.compile(r'^[a-z0-9][a-z0-9-]*$')
+BRIEF_KIND = 'cairn.hot-context'
+BRIEF_VERSION = 1
+SHA256 = re.compile(r'[0-9a-f]{64}')
 
 
 class Refusal(Exception):
@@ -76,14 +84,15 @@ def pending_path(root, project):
     return safe(root, project_path(root, project) / '.cairn' / 'pending.json')
 
 
-def snapshot(root, project):
+def snapshot(root, project, *, fallback_title=True):
     pending = pending_path(root, project)
     if pending.exists():
         raise Refusal('RECOVERY_REQUIRED', 'Finish the pending write before reading this project.')
     before = read_files(root, project)
-    data, _ = reader.read_repository(validator, root, [project], include_revisions=True)
+    data, _ = reader.read_repository(validator, root, [project], include_revisions=True,
+                                     fallback_title=fallback_title)
     if pending.exists() or read_files(root, project) != before:
-        raise Refusal('REVISION_CONFLICT', 'Project changed while reading; retry from the first page.')
+        raise Refusal('REVISION_CONFLICT', 'Project changed while reading; retry the read.')
     return data, before, fingerprint(before)
 
 
@@ -401,15 +410,158 @@ def browse(root, args):
     return common
 
 
+def brief_thread(value):
+    if not isinstance(value, str) or not value.strip() or len(value) > 200:
+        raise Refusal('INVALID_ARGUMENTS', 'Use a nonblank thread identifier of at most 200 characters.')
+    return value
+
+
+def brief_parameters(focus, limit):
+    if not isinstance(focus, list) or not 1 <= len(focus) <= 16:
+        raise Refusal('INVALID_ARGUMENTS', 'Provide 1..16 focus terms.')
+    if type(limit) is not int or not 1 <= limit <= 50:
+        raise Refusal('INVALID_ARGUMENTS', 'Brief limit must be an integer in 1..50.')
+    unique = {}
+    for term in focus:
+        if not isinstance(term, str) or not 1 <= len(term.strip()) <= 200:
+            raise Refusal('INVALID_ARGUMENTS', 'Each focus term must have 1..200 characters after trimming.')
+        term = term.strip()
+        unique.setdefault(term.casefold(), term)
+    return list(unique.values()), limit
+
+
+def repository_key(root):
+    return digest(os.path.normcase(str(root)))
+
+
+def build_brief(root, project, thread, focus, limit):
+    try:
+        data, _, stamp = snapshot(root, project, fallback_title=False)
+    except FileNotFoundError:
+        raise Refusal('REVISION_CONFLICT', 'Project changed while reading; retry the read.')
+    # The reader can detect a transient change even if the final file bytes match.
+    if any(e['message'] in ('project changed while reading; retry',
+                            'decision changed while reading; retry',
+                            'decision write is pending recovery; no records exported',
+                            'decision write is pending recovery; retry after recovery') for e in data['errors']):
+        raise Refusal('REVISION_CONFLICT', 'Project changed while reading; retry the read.')
+    candidates = []
+    folded_focus = [(term, term.casefold()) for term in focus]
+    for record in data['projects'][0]['decisions']:
+        if record['status'] != 'valid':
+            continue
+        sections = record['sections']
+        fields = {key: text.casefold() for key, text in (
+            ('id', record['id']), ('title', record['title']),
+            ('decision', sections['decision']), ('scope', sections['scope']),
+        )}
+        matched_terms = []
+        hits = set()
+        for term, folded in folded_focus:
+            term_fields = [field for field, value in fields.items() if folded in value]
+            if term_fields:
+                matched_terms.append(term)
+                hits.update(term_fields)
+        if not matched_terms:
+            continue
+        matched_fields = [field for field in fields if field in hits]
+        candidates.append(((-len(matched_terms), -len(matched_fields), record['id']),
+                           record, matched_terms, matched_fields))
+    candidates.sort(key=lambda candidate: candidate[0])
+    items = []
+    for _, record, matched_terms, matched_fields in candidates[:limit]:
+        item = {key: record[key] for key in ('id', 'project', 'file', 'revision', 'status')}
+        sections = record['sections']
+        excerpts = dict(title=record['title'], headline=sections['decision'],
+                        scope=sections['scope'], excluded=sections['excluded'], overturn=sections['overturn'])
+        for key, text in excerpts.items():
+            length = 160 if key in ('title', 'headline') else 240
+            item[key] = text[:length]
+            item[key + '_truncated'] = len(text) > length
+        item['relevance'] = dict(matched_terms=matched_terms, matched_fields=matched_fields)
+        items.append(item)
+    return dict(schema=1, ok=True, kind=BRIEF_KIND, brief_version=BRIEF_VERSION, source_of_truth=False,
+                project=project, thread=thread, focus=focus, limit=limit, repository_key=repository_key(root),
+                snapshot=stamp, complete=not data['errors'], errors=data['errors'], warnings=data['warnings'],
+                selection=dict(method='literal-focus-v1', matched=len(candidates), returned=len(items),
+                               truncated=len(candidates) > len(items), semantic_coverage='unknown'),
+                items=items)
+
+
+def json_object(pairs):
+    result = dict(pairs)
+    if len(result) != len(pairs):
+        raise ValueError('duplicate JSON member')
+    return result
+
+
+def reject_json_constant(value):
+    raise ValueError('non-JSON number')
+
+
+def check_brief(root, project, thread):
+    try:
+        previous = json.load(sys.stdin, object_pairs_hook=json_object, parse_constant=reject_json_constant)
+    except (ValueError, RecursionError):
+        raise Refusal('INVALID_ARGUMENTS', 'Provide one complete brief JSON object on stdin.')
+    if (not isinstance(previous, dict)
+            or type(previous.get('schema')) is not int or previous['schema'] != 1
+            or type(previous.get('brief_version')) is not int or previous['brief_version'] != BRIEF_VERSION
+            or previous.get('kind') != BRIEF_KIND or previous.get('ok') is not True
+            or previous.get('source_of_truth') is not False):
+        raise Refusal('INVALID_ARGUMENTS', 'Unsupported or unsuccessful brief.')
+    if (previous.get('project') != project or previous.get('thread') != thread
+            or previous.get('repository_key') != repository_key(root)):
+        raise Refusal('INVALID_ARGUMENTS', 'Brief does not belong to this repository, project and thread.')
+    focus, limit = brief_parameters(previous.get('focus'), previous.get('limit'))
+    if (previous['focus'] != focus or not isinstance(previous.get('snapshot'), str)
+            or not SHA256.fullmatch(previous['snapshot'])
+            or type(previous.get('complete')) is not bool
+            or not isinstance(previous.get('selection'), dict)
+            or not all(isinstance(previous.get(key), list) for key in ('items', 'errors', 'warnings'))):
+        raise Refusal('INVALID_ARGUMENTS', 'Brief is missing required fields or has invalid parameters.')
+    current = build_brief(root, project, thread, focus, limit)
+    freshness, action = 'stale', 'rebuild'
+    if current['snapshot'] != previous['snapshot']:
+        reason = 'source_changed'
+    else:
+        # Compare JSON types, including booleans vs integers, independent of key order.
+        try:
+            matches = json.dumps(current, sort_keys=True) == json.dumps(previous, sort_keys=True)
+        except (ValueError, RecursionError):
+            matches = False
+        if matches:
+            freshness, reason = 'fresh', 'unchanged'
+            truncated_constraints = any(
+                item[flag]
+                for item in current['items']
+                for flag in ('headline_truncated', 'scope_truncated', 'excluded_truncated', 'overturn_truncated')
+            )
+            action = 'read_source' if (
+                not current['complete'] or not current['items']
+                or current['selection']['truncated'] or truncated_constraints
+            ) else 'use_brief'
+        else:
+            reason = 'projection_changed'
+    return dict(schema=1, ok=True, project=project, thread=thread, freshness=freshness, reason=reason,
+                next_action=action, complete=current['complete'], errors=current['errors'],
+                warnings=current['warnings'])
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--repository', help='explicit private Cairn repository; otherwise use configured repository')
     commands = parser.add_subparsers(dest='command', required=True)
     commands.add_parser('projects')
-    for name in ('list', 'get', 'recover', 'status', 'reindex'):
+    for name in ('list', 'get', 'recover', 'status', 'reindex', 'brief', 'brief-check'):
         command = commands.add_parser(name)
         command.add_argument('--project', required=True)
-        if name == 'recover':
+        if name in ('brief', 'brief-check'):
+            command.add_argument('--thread', required=True, help='opaque host thread identifier')
+            if name == 'brief':
+                command.add_argument('--focus', action='append', required=True, help='literal term; repeat to add more')
+                command.add_argument('--limit', type=int, default=5)
+        elif name == 'recover':
             command.add_argument('--request-id', required=True)
         elif name == 'get':
             command.add_argument('--id', required=True)
@@ -445,6 +597,13 @@ def main(argv=None):
             result = write(root, json.load(sys.stdin))
         elif args.command == 'recover':
             result = recover(root, args.project, args.request_id)
+        elif args.command in ('brief', 'brief-check'):
+            project, thread = identifier(args.project), brief_thread(args.thread)
+            if args.command == 'brief':
+                focus, limit = brief_parameters(args.focus, args.limit)
+                result = build_brief(root, project, thread, focus, limit)
+            else:
+                result = check_brief(root, project, thread)
         elif args.command == 'status':
             path = pending_path(root, args.project)
             if path.exists():
@@ -462,7 +621,7 @@ def main(argv=None):
                 result = dict(schema=1, ok=True, state='error' if data['errors'] else 'ready',
                               project=args.project, snapshot=stamp, errors=data['errors'], warnings=data['warnings'],
                               index='current' if index_path.is_file() and index_path.read_text(encoding='utf-8') == expected else 'stale',
-                              capabilities=['list', 'get', 'write', 'recover', 'reindex'])
+                              capabilities=['list', 'get', 'write', 'recover', 'reindex', 'brief', 'brief-check'])
         elif args.command == 'reindex':
             with project_lock(root, args.project):
                 data, files, stamp = snapshot(root, args.project)

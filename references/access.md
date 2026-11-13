@@ -2,7 +2,7 @@
 
 This is the local CLI contract, bundled with the Skill. It uses Python 3.9+
 standard library only. There is no Basic Memory dependency, embedding service,
-search ranking, MCP server or hosted account. CLI/Skill are the supported entry
+semantic search, MCP server or hosted account. CLI/Skill are the supported entry
 points in this version; a future MCP adapter must use this same contract.
 
 Resolve the user's configured repository first. Below, `<repo>` means that
@@ -12,6 +12,8 @@ these values explicit; never guess a private repository location.
 ```bash
 python3 <repo>/scripts/cairn.py --repository <repo> projects
 python3 <repo>/scripts/cairn.py --repository <repo> status --project <project>
+python3 <repo>/scripts/cairn.py --repository <repo> brief --project <project> --thread <thread> --focus pricing --focus credits > previous-brief.json
+python3 <repo>/scripts/cairn.py --repository <repo> brief-check --project <project> --thread <thread> < previous-brief.json
 python3 <repo>/scripts/cairn.py --repository <repo> list --project <project>
 python3 <repo>/scripts/cairn.py --repository <repo> get --project <project> --id <decision-id>
 ```
@@ -22,12 +24,83 @@ Without `--repository`, configuration uses `CAIRN_CONFIG`, then
 new interface never falls back to the directory containing the script. The
 configured default does not make an unrelated task belong to that project.
 
+## Brief: thread-scoped recall candidates
+
+`brief` requires an explicit project and a nonblank, opaque `--thread` of at
+most 200 Unicode code points. The thread ID is compared as supplied and is
+never used as a path. Provide 1–16 `--focus` occurrences, each 1–200 code
+points after stripping surrounding whitespace. Duplicate terms are removed
+using Unicode casefold, preserving the first spelling and order. `--limit`
+defaults to 5 and accepts 1–50.
+
+Only validated `valid` decisions can match. A term matches a literal casefolded
+substring in the full ID, title, decision or scope, including Chinese phrases.
+Any hit qualifies. Sort by number of distinct matched terms (descending),
+number of distinct matched fields (descending), then ID (ascending). No dates
+or semantic scores affect order. `relevance.matched_terms` follows focus order;
+`matched_fields` follows ID, title, decision, scope order.
+
+The [brief schema](../docs/schema/brief-output.schema.json) describes the
+deterministic `schema:1` result with `kind:"cairn.hot-context"`, `brief_version:1`,
+and `source_of_truth:false`. The host keeps this result short-term for its
+thread. Cairn writes no brief file or cache. The example uses a file only to
+illustrate passing the complete JSON back on stdin; use an ephemeral host
+buffer or a private temporary file. Brief fields include:
+
+- Project, thread, normalized focus, limit, a SHA-256 key of the resolved
+  repository path (the path itself is not emitted), and the same project
+  `snapshot` fingerprint as `list`.
+- Items with ID, project, relative file, exact file revision, status, relevance,
+  and bounded excerpts. Title and decision `headline` are at most 160 code
+  points each; scope, exclusions and overturn conditions are at most 240 each.
+  Each excerpt has a corresponding `*_truncated` flag. Missing text stays
+  empty. There is no rationale, full Markdown body or timestamp.
+- Selection counts `matched` before the limit and `returned` after it, with
+  `truncated` when any matched candidate was omitted and
+  `semantic_coverage:"unknown"`. `complete` only describes the source read,
+  independently of matches and truncation. Even an empty brief retains all
+  errors and warnings for the selected project.
+
+### Validate a brief before reuse
+
+`brief-check` requires the original full JSON on stdin and the expected
+repository, project and thread on the command line or in configuration.
+Unsupported schema/version, mismatched binding or invalid input is refused.
+The supplied focus and limit must be valid and normalized; the host is
+responsible for building a new brief when the task's focus or limit changes.
+
+The CLI rebuilds the projection from the current L3 snapshot and returns
+`freshness`, `reason`, `next_action`, and current `complete/errors/warnings`
+without returning the old items:
+
+- `fresh / unchanged` means the full projection agrees. The CLI returns
+  `read_source` when candidates are absent, the source read is incomplete, the
+  limit omits candidates, or any returned decision headline, scope, exclusion
+  or overturn condition is truncated. A clipped title alone does not trigger
+  fallback. Before relying on a candidate as a current constraint, use exact
+  `get` to read any truncated decision text or applicability condition in full.
+  Use the original text for the missing portion. Otherwise the CLI returns
+  `use_brief`. Review warnings and assess applicability before using a brief.
+- `stale / source_changed` means a different project fingerprint, even if only
+  a non-matching record was added, edited or deleted. `stale / projection_changed`
+  means the fingerprint agrees but the supplied projection differs.
+  Both return `rebuild`; discard the old brief.
+- A pending write returns `RECOVERY_REQUIRED`; a detected concurrent change
+  returns `REVISION_CONFLICT`. Neither a refusal nor an unknown response may
+  be reused. Freshness is a comparison of current file contents, not an
+  audit log or an ability to retract text already injected into a conversation.
+
+`brief` and `brief-check` read one project; they do not share state across
+threads. Ordinary recall can use its brief, then fall back to L3 `list`/`get`.
+Open exact source records directly for known IDs, original wording or reasons,
+conflicts, high-impact verification and decision lifecycle changes.
+
 ## Read: navigate, then open an exact decision
 
 `list` filters by project, `--status valid|superseded|revoked` (default `valid`),
 and optional `--since YYYY-MM-DD`. It returns title, first 140 characters of the
 decision, first 240 characters of scope, explicit truncation flags, relative
-file path and SHA-256 revision. No semantic selection is performed. Unknown
+file path and SHA-256 revision. L3 `list` and `get` apply no relevance ranking. Unknown
 scope remains empty: it is not inferred from the title.
 
 - `--page` defaults to 1; `--page-size` to 20 (1..200, a per-response bound, not a

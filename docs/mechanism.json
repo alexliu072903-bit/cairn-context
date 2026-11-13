@@ -1,57 +1,43 @@
 {
   "slug": "cairn-context-mechanism",
-  "layout": "filter",
-  "colors": { "core": "#73c6d4", "coreSoft": "#e5f5f7" },
-  "loop": {
-    "kind": "failure",
-    "label": { "zh": "纠正形成修订记录", "en": "CORRECTIONS BECOME REVISIONS" }
-  },
-  "stages": [
+  "layout": "recall-layers",
+  "title": { "zh": "Cairn 如何找回项目决定", "en": "How Cairn recalls a decision" },
+  "subtitle": { "zh": "普通召回：先用现有 Context，再找候选，最后查原文。", "en": "Ordinary recall moves from current context to candidates to source." },
+  "layers": [
     {
-      "id": "decisions",
-      "icon": "database",
-      "title": { "zh": "项目决定", "en": "DECISIONS" },
-      "items": [
-        { "zh": "确认的决定", "en": "Confirmed decisions" },
-        { "zh": "倾向与问题", "en": "Inclinations and questions" },
-        { "zh": "保存在仓库", "en": "Stored in a repository" }
+      "id": "l1",
+      "owner": { "zh": "L1 · 宿主", "en": "L1 · HOST" },
+      "title": { "zh": "当前 Context", "en": "Current context" },
+      "lines": [
+        { "zh": "已在当前任务中的信息", "en": "Information already in the task." },
+        { "zh": "足够时，直接继续", "en": "Continue when it is sufficient." }
       ]
     },
     {
-      "id": "filter",
-      "icon": "filter",
-      "title": { "zh": "相关性筛选", "en": "RELEVANCE FILTER" },
-      "items": [
-        { "zh": "读取标题与文件名", "en": "Read titles and filenames" },
-        { "zh": "只选择相关决定", "en": "Select relevant decisions" }
+      "id": "l2",
+      "owner": { "zh": "L2 · 宿主", "en": "L2 · HOST" },
+      "title": { "zh": "线程简报", "en": "Thread brief" },
+      "lines": [
+        { "zh": "按项目和线程保留短期候选", "en": "Short-lived project/thread candidates." },
+        { "zh": "按字面匹配，复用前检查快照", "en": "Match literal terms; check before reuse." }
       ]
     },
     {
-      "id": "context",
-      "icon": "context",
-      "title": { "zh": "任务 CONTEXT", "en": "TASK CONTEXT" },
-      "items": [
-        { "zh": "保持紧凑", "en": "Keep it compact" },
-        { "zh": "保留决定边界", "en": "Preserve decision status" }
-      ]
-    },
-    {
-      "id": "session",
-      "icon": "agent",
-      "title": { "zh": "新 SESSION", "en": "NEW SESSION" },
-      "items": [
-        { "zh": "带着相关背景开工", "en": "Start with relevant context" },
-        { "zh": "不读取全部历史", "en": "Do not load all history" }
-      ]
-    },
-    {
-      "id": "correction",
-      "icon": "document",
-      "title": { "zh": "用户纠正", "en": "CORRECTION" },
-      "items": [
-        { "zh": "先修正事实", "en": "Correct the fact first" },
-        { "zh": "保留替代关系", "en": "Keep revision history" }
+      "id": "l3",
+      "owner": { "zh": "L3 · CAIRN", "en": "L3 · CAIRN" },
+      "title": { "zh": "决定仓库", "en": "Decision repository" },
+      "lines": [
+        { "zh": "唯一事实来源，保留决定原文和历史", "en": "Source of truth for decisions and history." },
+        { "zh": "按 ID 查原文，按协议变更决定", "en": "Read by ID; change through the Protocol." }
       ]
     }
-  ]
+  ],
+  "miss": { "zh": "信息不足", "en": "Context missing" },
+  "fallback": [
+    { "zh": "候选不足", "en": "Candidates missing" },
+    { "zh": "或读取不完整", "en": "or read incomplete" }
+  ],
+  "bypass": { "zh": "已知 ID、决定变更或高影响核对：直接查 L3", "en": "Known ID, lifecycle change, or high-impact check: go directly to L3" },
+  "invalidation": { "zh": "项目决定变化 → 丢弃旧简报，按需重建", "en": "Project decisions change → discard the old brief and rebuild as needed" },
+  "caption": { "zh": "机制示意 · Cairn 不保存简报", "en": "Mechanism diagram · Cairn does not store the brief" }
 }

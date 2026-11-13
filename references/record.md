@@ -6,7 +6,7 @@ Use this route only when the user clearly commits to execution, rejects a direct
 
 Do not record tentative preferences, open comparisons, ordinary implementation steps, temporary experiments or the Agent's recommendation. If durable intent or project scope is genuinely ambiguous, ask once. No explicit confirmation means no write.
 
-Recall existing decisions on the same subject and scope first. Reuse an existing record when the confirmed conclusion is unchanged. New evidence for the same conclusion is not automatically a new decision. Similar titles or a newer timestamp do not prove replacement.
+Read the current L3 records on the same subject and scope first. For correction, revocation or replacement, use exact `get` directly. Reuse an existing record when the confirmed conclusion is unchanged. New evidence for the same conclusion is not automatically a new decision. Similar titles or a newer timestamp do not prove replacement.
 
 ## Select the lifecycle action
 
@@ -26,6 +26,7 @@ When `scripts/cairn.py` exists, follow the write section of [access.md](access.m
 3. Supply user-authored text through a JSON file or process pipe, not shell interpolation.
 4. Run `write`; do not bypass refusals by editing files directly.
 5. Read back every affected record and verify its status, history links and conclusion.
+6. Discard previous briefs for the affected project after a successful write and read-back. If recovery is needed, do not reuse them. Text already present in L1 cannot be retracted by Cairn; tell the current thread which decision has changed before using it again.
 
 `confirmed:true` is the Agent's assertion that the user intent was explicit; the CLI does not make that judgment. Retry the identical request with the same request id. A new id is not a recovery mechanism.
 

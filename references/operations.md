@@ -10,12 +10,15 @@ Follow the recovery section of [access.md](access.md). Check `status` before sta
 - Do not delete journals, pending markers or create a new request id to escape recovery.
 - `RECOVERY_CONFLICT` means an external change differs from both recorded states. Preserve it and report the conflicting path; do not overwrite it.
 - A receipt proves completion of that operation, not that the record is still the latest state. Read back current records.
+- A brief cannot replace recovery. After recovery, discard old briefs and rebuild from the verified project snapshot if still needed.
 
 Journals contain private before/after snapshots and request sources. Keep them in the configured private repository.
 
 ## External edits and concurrency
 
 Cairn's lock coordinates Cairn writers, not arbitrary editors or Git operations. Avoid checkout, rebase and legacy scheduled sync during a write or pending recovery. Manual Markdown edits remain supported and are validated on the next read.
+
+After a manual edit or sync, check any retained brief before use with `brief-check`; discard stale results and rebuild if needed. Even a change to a non-matching decision invalidates the old snapshot.
 
 Do not infer that an I/O failure means nothing changed. Inspect status and the transaction phase before retrying.
 
@@ -29,4 +32,4 @@ On sync failure or conflict, preserve local commits and both sides of the confli
 
 ## Capability upgrades
 
-When the installed repository lacks the unified reader or writer, state the concrete missing guarantee. Use the public installer `upgrade` path only when the user asks to upgrade; it refreshes managed scripts and installed Skill files while preserving decisions and project files.
+When the installed repository lacks the brief commands, unified reader or writer, state the concrete missing guarantee. Use the public installer `upgrade` path only when the user asks to upgrade; it refreshes managed scripts and installed Skill files while preserving decisions and project files.

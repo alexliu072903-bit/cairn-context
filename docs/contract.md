@@ -15,10 +15,30 @@ without changing the legacy export schema below. The Markdown index now uses
 the same file/history validation as the reader; invalid entries are diagnosed
 and omitted. Both readers refuse projects with a pending unified write.
 
+## Three context layers
+
+L1 is the context of the current task, owned by the host. On a miss, use L2, the
+host's short-lived candidate projection for this project and thread. Build with
+`brief` and pass the unchanged result to `brief-check` before reuse. The host
+supplies project, thread, and literal focus; it stores no brief in the decision
+repository. The selection is deterministic and does not establish semantic
+coverage. Use L3 `list`/`get` if the brief is insufficient or incomplete, and go
+straight to L3 for a known ID, a lifecycle change, a conflict, or a high-impact
+verification.
+
+L3 is the configured decision repository and the sole source of truth. A change
+to any decision file in the project invalidates the older snapshot, even if
+the decision was not selected. The host discards stale or refused results.
+A check does not retract content already present in L1. See the
+[brief contract](../references/access.md#brief-thread-scoped-recall-candidates)
+for response fields, ordering, diagnostics and fallback.
+
 ## What an integration may rely on
 
 | Need | Use | Output |
 | --- | --- | --- |
+| Build a thread brief | `scripts/cairn.py brief` | [`brief-output.schema.json`](schema/brief-output.schema.json) |
+| Check whether a brief still matches the source | `scripts/cairn.py brief-check` | [Unified access envelope](schema/access-output.schema.json) |
 | Read decisions | `scripts/read.py` in the repository | [`read-output.schema.json`](schema/read-output.schema.json) |
 | Is Cairn enabled, and what is wrong | `install.py status --json` | [`status-output.schema.json`](schema/status-output.schema.json) |
 | Create a repository and install the Skill | `install.py install --json` | `{ok, actions, ...}` or `{ok:false, code, error}` |
